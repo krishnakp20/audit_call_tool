@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy>=2.0
+pymysql
+alembic
+pydantic-settings
+python-jose[cryptography]
+bcrypt
+python-multipart
+httpx
+celery[redis]
+redis
+email-validator

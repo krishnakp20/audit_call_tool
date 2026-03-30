@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-amber-50 text-slate-800 antialiased;
+}
+
+.glass-card {
+  @apply rounded-2xl border border-amber-200/80 bg-white/80 backdrop-blur-xl shadow-lg shadow-amber-100/60;
+}
