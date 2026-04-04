@@ -30,10 +30,19 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173"
 
-    stt_api_url: str = "https://stt.example.com/transcribe"
-    stt_api_key: str = ""
-    llm_api_url: str = "https://llm.example.com/audit"
-    llm_api_key: str = ""
+    # Deepgram STT
+    stt_api_url: str = Field(default="https://api.deepgram.com/v1/listen", alias="STT_API_URL")
+    stt_api_key: str = Field(default="", alias="STT_API_KEY")
+    stt_mock_enabled: bool = Field(default=False, alias="STT_MOCK_ENABLED")
+    stt_model: str = Field(default="nova", alias="STT_MODEL")
+    stt_language: str = Field(default="hi-Latn", alias="STT_LANGUAGE")
+
+    # LLM / OpenAI
+    llm_api_url: str = Field(default="https://llm.example.com/audit", alias="LLM_API_URL")
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
+    llm_mock_enabled: bool = Field(default=False, alias="LLM_MOCK_ENABLED")
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    openai_model: str = Field(default="gpt-4o", alias="OPENAI_MODEL")
 
     @property
     def cors_origins_list(self) -> list[str]:

@@ -6,6 +6,15 @@ class PromptCreate(BaseModel):
     prompt: str
 
 
+class PromptUpdate(BaseModel):
+    prompt: str
+
+
+class PromptTestOut(BaseModel):
+    transcript: str
+    audit_json: dict
+
+
 class PromptOut(BaseModel):
     id: int
     client_id: int

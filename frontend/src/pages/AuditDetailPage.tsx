@@ -13,38 +13,98 @@ export default function AuditDetailPage() {
 
   const audits = useQuery({
     queryKey: ["audits", clientId],
-    queryFn: async () => (await api.get<Audit[]>("/audit", { params: { client_id: clientId } })).data,
+    queryFn: async () =>
+      (
+        await api.get<Audit[]>("/audit", {
+          params: {
+            client_id: clientId
+          }
+        })
+      ).data,
     enabled: !!clientId
   });
 
+  const auditByCall = useQuery({
+    queryKey: ["audit-by-call", callId],
+    queryFn: async () => (await api.get<Audit>(`/audit/${callId}`)).data,
+    enabled: !!callId
+  });
+
   const selectedAudit = useMemo(() => {
+    if (callId && auditByCall.data) return auditByCall.data;
     if (!audits.data?.length) return null;
-    if (callId) return audits.data.find((a) => a.call_id === callId) ?? audits.data[0];
+    if (callId) return audits.data.find((a) => a.call_id === callId) ?? null;
     return audits.data[0];
-  }, [audits.data, callId]);
+  }, [audits.data, callId, auditByCall.data]);
+
+  if (audits.isLoading || auditByCall.isLoading) {
+    return <div className="glass-card p-6 text-slate-700">Loading audit details...</div>;
+  }
+
+  if (!selectedAudit && callId) {
+    return (
+      <div className="glass-card p-6 text-slate-700">
+        No audit result found for call <span className="font-semibold">{callId}</span>. This call may still be pending audit.
+      </div>
+    );
+  }
 
   if (!selectedAudit) {
     return <div className="glass-card p-6 text-slate-700">No audited calls found for this client.</div>;
   }
 
-  const sentiment = (selectedAudit.audit_json?.sentiment as string) ?? "Neutral";
-  const improvements = (selectedAudit.audit_json?.improvements as string[]) ?? [];
+  const sentimentRaw = selectedAudit.audit_json?.sentiment;
+  const sentiment =
+    typeof sentimentRaw === "string"
+      ? sentimentRaw
+      : sentimentRaw && typeof sentimentRaw === "object"
+        ? "Neutral"
+        : "Neutral";
+
+  const improvementsRaw =
+    selectedAudit.audit_json?.improvements ?? selectedAudit.audit_json?.areas_for_improvement;
+  const improvements = Array.isArray(improvementsRaw) ? improvementsRaw.map((item) => String(item)) : [];
+
+  const jsonPercentageRaw = selectedAudit.audit_json?.percentage;
+  const jsonPercentage =
+    typeof jsonPercentageRaw === "number"
+      ? jsonPercentageRaw
+      : typeof jsonPercentageRaw === "string"
+        ? Number(jsonPercentageRaw)
+        : NaN;
+  const percentage =
+    selectedAudit.percentage && selectedAudit.percentage > 0
+      ? selectedAudit.percentage
+      : Number.isFinite(jsonPercentage)
+        ? jsonPercentage
+        : 0;
+
+  const jsonRankingRaw = selectedAudit.audit_json?.ranking;
+  const ranking =
+    selectedAudit.ranking && selectedAudit.ranking !== "N/A"
+      ? selectedAudit.ranking
+      : typeof jsonRankingRaw === "string"
+        ? jsonRankingRaw
+        : "N/A";
+
+  const jsonFatalRaw = selectedAudit.audit_json?.fatal_flag ?? selectedAudit.audit_json?.fatal;
+  const fatalFlag = typeof jsonFatalRaw === "boolean" ? jsonFatalRaw : Boolean(selectedAudit.fatal_flag);
 
   return (
     <div className="space-y-4">
       <div className="glass-card p-4">
         <h2 className="text-lg font-semibold">Call {selectedAudit.call_id}</h2>
         <div className="mt-3 flex flex-wrap gap-2">
-          <span className="rounded-full bg-sky-500/20 px-3 py-1 text-xs text-sky-300">
-            Score: {selectedAudit.percentage}%
+          <span className="rounded-full border border-sky-200 bg-sky-100 px-3 py-1 text-xs font-medium text-sky-800">
+            Score: {percentage}%
           </span>
-          <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs text-violet-300">
-            Ranking: {selectedAudit.ranking}
+          <span className="rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-medium text-violet-800">
+            Ranking: {ranking}
           </span>
-          <span className="rounded-full bg-rose-500/20 px-3 py-1 text-xs text-rose-300">
-            Fatal: {selectedAudit.fatal_flag ? "Yes" : "No"}
+          <span className="rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-xs font-medium text-rose-800">
+            Fatal: {fatalFlag ? "Yes" : "No"}
           </span>
-          <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs text-emerald-300">
+          <span className="rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
             Sentiment: {sentiment}
           </span>
         </div>

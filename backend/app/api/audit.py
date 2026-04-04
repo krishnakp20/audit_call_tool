@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -13,10 +15,17 @@ router = APIRouter(prefix="/audit", tags=["Audit"])
 @router.get("", response_model=list[CallAuditOut])
 def list_audits(
     client_id: int = Query(...),
+    date_from: datetime | None = Query(default=None),
+    date_to: datetime | None = Query(default=None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ) -> list[CallAuditOut]:
-    return db.query(CallAudit).filter(CallAudit.client_id == client_id).order_by(CallAudit.created_at.desc()).all()
+    query = db.query(CallAudit).filter(CallAudit.client_id == client_id)
+    if date_from:
+        query = query.filter(CallAudit.created_at >= date_from)
+    if date_to:
+        query = query.filter(CallAudit.created_at <= date_to)
+    return query.order_by(CallAudit.created_at.desc()).all()
 
 
 @router.get("/{call_id}", response_model=CallAuditOut)

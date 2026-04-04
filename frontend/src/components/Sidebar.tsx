@@ -1,13 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import { useUIStore } from "@/store/uiStore";
-import { LayoutDashboard, Users, ScrollText, FileAudio2, ShieldCheck, Sliders } from "lucide-react";
+import { LayoutDashboard, Users, ScrollText, FileAudio2, Sliders } from "lucide-react";
 
 const items = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/prompts", label: "Prompt Builder", icon: ScrollText },
   { to: "/calls", label: "Call Logs", icon: FileAudio2 },
-  { to: "/audit", label: "Audit Detail", icon: ShieldCheck },
   { to: "/settings", label: "Settings", icon: Sliders }
 ];
 
