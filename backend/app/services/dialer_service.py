@@ -67,7 +67,7 @@ def _mock_dialer_payload(client: Client) -> List[Dict[str, Any]]:
                 vc.call_date,
                 vc.lead_id,
                 vc.length_in_sec
-            FROM vicidial_closer_log vc
+            FROM vicidial_log vc
             LEFT JOIN recording_log r
                 ON vc.lead_id = r.lead_id
                AND DATE(vc.call_date) = DATE(r.start_time)
@@ -75,7 +75,7 @@ def _mock_dialer_payload(client: Client) -> List[Dict[str, Any]]:
               AND vc.call_date > %s
               AND vc.call_date <= DATE_SUB(NOW(), INTERVAL 20 MINUTE)
               AND vc.user != 'VDCL'
-            LIMIT 50
+            LIMIT 10
         """
 
         last_sync = datetime.utcnow() - timedelta(hours=1)
@@ -93,11 +93,17 @@ def _mock_dialer_payload(client: Client) -> List[Dict[str, Any]]:
             try:
                 call_time = row["call_date"]
 
+                duration = row["length_in_sec"] or 0
+
+                # ✅ SKIP SHORT CALLS
+                if duration < 20:
+                    print(f"⏩ Skipping short call (<20s): {duration}s")
+                    continue
+
                 call_id = f"{row['campaign_id']}-{row['lead_id']}-{int(call_time.timestamp())}"
 
-                print(f"➡ Row {i+1}: {call_id}")
+                print(f"➡ Row {i + 1}: {call_id}")
 
-                duration = row["length_in_sec"] or 0
                 end_time = call_time + timedelta(seconds=duration)
 
                 payload.append(
@@ -140,18 +146,42 @@ def fetch_calls_for_client(db: Session, client: Client) -> int:
 
     print(f"📦 Payload size: {len(data)}")
 
+    # for row in data:
+    #     try:
+    #         exists = db.query(CallLog).filter(CallLog.call_id == row["call_id"]).first()
+    #
+    #         if exists:
+    #             print(f"⏩ Skipping (exists): {row['call_id']}")
+    #             continue
+    #
+    #         db.add(CallLog(client_id=client.id, **row))
+    #         inserted += 1
+    #
+    #         print(f"✅ Inserted: {row['call_id']}")
+    #
+    #     except Exception as e:
+    #         print(f"❌ Insert error: {e}")
+    from sqlalchemy.dialects.mysql import insert
+
+    seen = set()
+
     for row in data:
+        if row["call_id"] in seen:
+            print(f"⚠️ Duplicate in payload skipped: {row['call_id']}")
+            continue
+
+        seen.add(row["call_id"])
+
         try:
-            exists = db.query(CallLog).filter(CallLog.call_id == row["call_id"]).first()
+            stmt = insert(CallLog).values(
+                client_id=client.id,
+                **row
+            ).prefix_with("IGNORE")
 
-            if exists:
-                print(f"⏩ Skipping (exists): {row['call_id']}")
-                continue
-
-            db.add(CallLog(client_id=client.id, **row))
-            inserted += 1
+            db.execute(stmt)
 
             print(f"✅ Inserted: {row['call_id']}")
+            inserted += 1
 
         except Exception as e:
             print(f"❌ Insert error: {e}")

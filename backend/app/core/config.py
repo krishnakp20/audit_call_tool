@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4o", alias="OPENAI_MODEL")
 
+    sql_db_url2: str = Field(default="", alias="SQL_DB_URL2")
+    sql_db_url3: str = Field(default="", alias="SQL_DB_URL3")
+
     @property
     def cors_origins_list(self) -> list[str]:
         raw = self.cors_origins.strip()
@@ -64,6 +67,16 @@ class Settings(BaseSettings):
             f"mysql+pymysql://{self.mysql_user}:{self.mysql_password}"
             f"@{self.mysql_host}:{self.mysql_port}/{self.mysql_db}"
         )
+
+    # ✅ DB2
+    @property
+    def sqlalchemy_database_uri2(self) -> str:
+        return self.sql_db_url2
+
+    # ✅ DB3
+    @property
+    def sqlalchemy_database_uri3(self) -> str:
+        return self.sql_db_url3
 
 
 @lru_cache
