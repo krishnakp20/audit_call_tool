@@ -228,6 +228,8 @@ export default function PromptBuilderPage() {
                     )}
                   </span>
                   <div className="flex items-center gap-2">
+                     {/* ❌ Edit Button Commented */}
+                     {/*
                     <button
                       className="rounded-lg bg-sky-100 px-3 py-1 text-xs text-sky-700"
                       onClick={() => {
@@ -237,6 +239,17 @@ export default function PromptBuilderPage() {
                     >
                       Edit
                     </button>
+                    */}
+                    {/* ✅ Copy Full Prompt Button */}
+                      <button
+                        className="rounded-lg bg-indigo-100 px-3 py-1 text-xs text-indigo-700"
+                        onClick={() => {
+                          navigator.clipboard.writeText(prompt.prompt);
+                          toast.success("Prompt copied");
+                        }}
+                      >
+                        Copy
+                      </button>
                     {prompt.is_active ? (
                       <button
                         className="rounded-lg bg-rose-100 px-3 py-1 text-xs text-rose-700"

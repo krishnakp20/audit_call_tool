@@ -204,7 +204,7 @@ useEffect(() => {
       {/* 🔹 Agent Filter */}
       <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-slate-500 uppercase">
-            Select Agents
+            Agent Out Of ({agentDetails.length})
           </label>
 
           <select

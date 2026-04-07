@@ -1,4 +1,3 @@
-
 from datetime import datetime, timedelta
 from typing import Any, List, Dict
 
@@ -7,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.call_log import CallLog
 from app.models.client import Client
+from app.models.settings import Setting
 
 
 # -----------------------------
@@ -26,9 +26,9 @@ def get_asterisk_connection(client: Client):
 
 
 # -----------------------------
-# FETCH DATA (DEBUG VERSION)
+# FETCH DATA
 # -----------------------------
-def _mock_dialer_payload(client: Client) -> List[Dict[str, Any]]:
+def _fetch_dialer_payload(client: Client, settings: Setting) -> List[Dict[str, Any]]:
     print(f"\n🚀 Fetching calls for client: {client.id}")
 
     if not client.campaigns:
@@ -43,15 +43,19 @@ def _mock_dialer_payload(client: Client) -> List[Dict[str, Any]]:
             [f"'{c.strip()}'" for c in client.campaigns.split(",") if c.strip()]
         )
 
+        table_name = "vicidial_log" if not client.ingroups else "vicidial_closer_log"
+        print(f"📌 Using table: {table_name}")
         print(f"📌 Campaigns: {campaign_ids}")
 
         connection_uri_underscore = client.dialer_ip.replace(".", "_")
 
-        asterisk_sql = f"""
+        sql = f"""
             SELECT
                 vc.campaign_id,
-                RIGHT(vc.phone_number, 10) AS MobileNo,
                 vc.user,
+                vc.call_date,
+                vc.lead_id,
+                vc.length_in_sec,
                 IFNULL(
                     REPLACE(
                         r.location,
@@ -63,11 +67,8 @@ def _mock_dialer_payload(client: Client) -> List[Dict[str, Any]]:
                         )
                     ),
                     ''
-                ) AS file_url,
-                vc.call_date,
-                vc.lead_id,
-                vc.length_in_sec
-            FROM vicidial_log vc
+                ) AS file_url
+            FROM {table_name} vc
             LEFT JOIN recording_log r
                 ON vc.lead_id = r.lead_id
                AND DATE(vc.call_date) = DATE(r.start_time)
@@ -75,50 +76,41 @@ def _mock_dialer_payload(client: Client) -> List[Dict[str, Any]]:
               AND vc.call_date > %s
               AND vc.call_date <= DATE_SUB(NOW(), INTERVAL 20 MINUTE)
               AND vc.user != 'VDCL'
-            LIMIT 10
+            LIMIT 200
         """
 
         last_sync = datetime.utcnow() - timedelta(hours=1)
-
-        print(f"⏱ Last Sync: {last_sync}")
-
-        cursor.execute(asterisk_sql, (last_sync,))
+        cursor.execute(sql, (last_sync,))
         rows = cursor.fetchall()
 
         print(f"📊 Rows fetched: {len(rows)}")
 
         payload: List[Dict[str, Any]] = []
 
-        for i, row in enumerate(rows):
+        for row in rows:
             try:
-                call_time = row["call_date"]
-
                 duration = row["length_in_sec"] or 0
 
-                # ✅ SKIP SHORT CALLS
-                if duration < 20:
-                    print(f"⏩ Skipping short call (<20s): {duration}s")
+                if duration < settings.min_call_duration or duration > settings.max_call_duration:
                     continue
 
+                call_time = row["call_date"]
+
                 call_id = f"{row['campaign_id']}-{row['lead_id']}-{int(call_time.timestamp())}"
-
-                print(f"➡ Row {i + 1}: {call_id}")
-
-                end_time = call_time + timedelta(seconds=duration)
 
                 payload.append(
                     {
                         "call_id": call_id,
                         "agent_id": row["user"],
                         "start_time": call_time,
-                        "end_time": end_time,
+                        "end_time": call_time + timedelta(seconds=duration),
                         "duration": duration,
                         "recording_path": row["file_url"] or "",
                     }
                 )
 
             except Exception as e:
-                print(f"❌ Error parsing row {i}: {e}")
+                print(f"❌ Row parse error: {e}")
 
         return payload
 
@@ -133,95 +125,90 @@ def _mock_dialer_payload(client: Client) -> List[Dict[str, Any]]:
 
 
 # -----------------------------
-# INSERT INTO DB (DEBUG)
+# MAIN LOGIC WITH DAILY LIMIT
 # -----------------------------
 def fetch_calls_for_client(db: Session, client: Client) -> int:
     print("\n==============================")
-    print("📥 START FETCH CALLS")
+    print(f"📥 START FETCH CLIENT {client.id}")
     print("==============================")
 
     inserted = 0
 
-    data = _mock_dialer_payload(client)
+    settings = db.query(Setting).filter(Setting.client_id == client.id).first()
+    if not settings:
+        settings = Setting(client_id=client.id)
 
+    # ✅ IST TIME (IMPORTANT)
+    now = datetime.utcnow() + timedelta(hours=5, minutes=30)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # ✅ GET TODAY COUNTS FROM DB
+    today_counts: Dict[str, int] = {}
+    total_today = 0
+
+    rows = db.query(CallLog.agent_id).filter(
+        CallLog.client_id == client.id,
+        CallLog.start_time >= today_start
+    ).all()
+
+    for r in rows:
+        today_counts[r.agent_id] = today_counts.get(r.agent_id, 0) + 1
+        total_today += 1
+
+    print(f"📊 Today Existing → Total: {total_today}, Agent: {today_counts}")
+
+    # 🚫 STOP IF ALREADY COMPLETE
+    if settings.total and total_today >= settings.total:
+        print("⛔ DAILY TARGET ALREADY COMPLETED")
+        return 0
+
+    data = _fetch_dialer_payload(client, settings)
     print(f"📦 Payload size: {len(data)}")
 
-    # for row in data:
-    #     try:
-    #         exists = db.query(CallLog).filter(CallLog.call_id == row["call_id"]).first()
-    #
-    #         if exists:
-    #             print(f"⏩ Skipping (exists): {row['call_id']}")
-    #             continue
-    #
-    #         db.add(CallLog(client_id=client.id, **row))
-    #         inserted += 1
-    #
-    #         print(f"✅ Inserted: {row['call_id']}")
-    #
-    #     except Exception as e:
-    #         print(f"❌ Insert error: {e}")
     from sqlalchemy.dialects.mysql import insert
-
     seen = set()
 
     for row in data:
+        agent = row["agent_id"]
+
+        # ✅ Only selected agents
+        if settings.agents and agent not in settings.agents:
+            continue
+
+        agent_today = today_counts.get(agent, 0)
+
+        # ❌ Per agent limit
+        if settings.audit_calls_per_agent and agent_today >= settings.audit_calls_per_agent:
+            continue
+
+        # ❌ Total daily limit
+        if settings.total and total_today >= settings.total:
+            print("⛔ DAILY LIMIT REACHED")
+            break
+
         if row["call_id"] in seen:
-            print(f"⚠️ Duplicate in payload skipped: {row['call_id']}")
             continue
 
         seen.add(row["call_id"])
 
         try:
-            stmt = insert(CallLog).values(
-                client_id=client.id,
-                **row
-            ).prefix_with("IGNORE")
-
+            stmt = insert(CallLog).values(client_id=client.id, **row).prefix_with("IGNORE")
             db.execute(stmt)
 
-            print(f"✅ Inserted: {row['call_id']}")
+            today_counts[agent] = agent_today + 1
+            total_today += 1
             inserted += 1
+
+            print(f"✅ {row['call_id']} | {agent} ({today_counts[agent]})")
 
         except Exception as e:
             print(f"❌ Insert error: {e}")
 
     db.commit()
 
-    print(f"🎯 Total Inserted: {inserted}")
+    print("\n📊 FINAL TODAY COUNT:")
+    print(today_counts)
+    print(f"🎯 Total Inserted Today: {total_today}")
     print("==============================\n")
 
     return inserted
-
-
-if __name__ == "__main__":
-    from sqlalchemy import select
-    from app.db.session import SessionLocal
-    from app.models.client import Client
-
-    print("🚀 START MANUAL FETCH")
-
-    db = SessionLocal()
-
-    try:
-        clients = db.scalars(select(Client)).all()
-
-        print(f"👥 Total Clients: {len(clients)}")
-
-        total_inserted = 0
-
-        for client in clients:
-            print(f"\n🔄 Processing Client ID: {client.id}")
-            inserted = fetch_calls_for_client(db, client)
-            total_inserted += inserted
-
-        print("\n======================")
-        print(f"🎯 TOTAL INSERTED: {total_inserted}")
-        print("======================")
-
-    except Exception as e:
-        print(f"🔥 ERROR: {e}")
-
-    finally:
-        db.close()
-        print("🔒 DB Closed")

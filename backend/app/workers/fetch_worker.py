@@ -9,14 +9,39 @@ from app.services.dialer_service import fetch_calls_for_client
 
 
 def run_once() -> int:
+    print("\n🚀 START FETCH WORKER")
+
     db = SessionLocal()
+    total = 0
+
     try:
         clients = db.scalars(select(Client)).all()
-        total = 0
+        print(f"👥 Total Clients Found: {len(clients)}")
+
         for client in clients:
-            total += fetch_calls_for_client(db, client)
-        print(f"[fetch_worker] inserted={total}")
+            print("\n-----------------------------")
+            print(f"🔄 Processing Client: {client.id} | {client.name}")
+            print("-----------------------------")
+
+            try:
+                # ✅ IMPORTANT: use separate session per client (fixes hidden issues)
+                client_db = SessionLocal()
+
+                inserted = fetch_calls_for_client(client_db, client)
+                total += inserted
+
+                client_db.close()
+
+                print(f"✅ Done Client {client.name} | Inserted: {inserted}")
+
+            except Exception as e:
+                print(f"❌ Error in client {client.name}: {e}")
+
+        print(f"\n🎯 TOTAL INSERTED: {total}")
+        print("====================================\n")
+
         return total
+
     finally:
         db.close()
 
