@@ -31,8 +31,20 @@ class ClientUpdate(BaseModel):
     ingroups: str | None = None
 
 
-class ClientOut(ClientBase):
+class ClientOut(BaseModel):
     id: int
+    name: str
+    is_active: int
+
+    dialer_ip: str
+    dialer_user: str
+
+    db_host: str
+    db_user: str
+
+    campaigns: str
+    ingroups: str
+
     created_at: datetime
 
     class Config:

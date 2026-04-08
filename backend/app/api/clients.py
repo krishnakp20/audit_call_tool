@@ -46,3 +46,25 @@ def update_client(
     db.commit()
     db.refresh(client)
     return client
+
+@router.patch("/{client_id}/status")
+def toggle_client_status(
+    client_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    client = db.query(Client).filter(Client.id == client_id).first()
+
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    # toggle
+    client.is_active = 0 if client.is_active == 1 else 1
+
+    db.commit()
+    db.refresh(client)
+
+    return {
+        "message": "Client status updated",
+        "is_active": client.is_active
+    }

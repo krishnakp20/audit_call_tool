@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text
+from sqlalchemy import String, Text,Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -9,6 +9,7 @@ class Client(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    is_active: Mapped[int] = mapped_column(Integer, default=1)
     dialer_ip: Mapped[str] = mapped_column(String(128), nullable=False)
     dialer_user: Mapped[str] = mapped_column(String(128), nullable=False)
     dialer_pass: Mapped[str] = mapped_column(String(255), nullable=False)

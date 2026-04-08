@@ -15,7 +15,9 @@ def run_once() -> int:
     total = 0
 
     try:
-        clients = db.scalars(select(Client)).all()
+        clients = db.scalars(
+            select(Client).where(Client.is_active == 1)
+        ).all()
         print(f"👥 Total Clients Found: {len(clients)}")
 
         for client in clients:

@@ -38,6 +38,18 @@ export default function ClientsPage() {
     onError: () => toast.error("Failed to add client")
   });
 
+    const toggleStatus = useMutation({
+      mutationFn: async (id: number) =>
+        api.patch(`/clients/${id}/status`),
+
+      onSuccess: () => {
+        toast.success("Status updated");
+        queryClient.invalidateQueries({ queryKey: ["clients"] });
+      },
+
+      onError: () => toast.error("Failed to update status")
+    });
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -50,13 +62,29 @@ export default function ClientsPage() {
       </div>
 
       <DataTable
-        headers={["Name", "Dialer IP", "Campaigns", "Ingroups", "Created"]}
+        headers={["Name", "Dialer IP", "Campaigns", "Ingroups", "Status", "Action", "Created"]}
         rows={
           clients.data?.map((client) => [
             client.name,
             client.dialer_ip,
             client.campaigns,
             client.ingroups,
+
+            // ✅ STATUS BADGE
+            client.is_active === 1 ? "Active" : "Inactive",
+
+            // ✅ ACTION BUTTON
+            <button
+              onClick={() => toggleStatus.mutate(client.id)}
+              className={`rounded px-3 py-1 text-xs ${
+                client.is_active
+                  ? "bg-red-500 text-white"
+                  : "bg-green-500 text-white"
+              }`}
+            >
+              {client.is_active ? "Deactivate" : "Activate"}
+            </button>,
+
             new Date(client.created_at).toLocaleString()
           ]) ?? []
         }
