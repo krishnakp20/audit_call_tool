@@ -9,6 +9,7 @@ export interface Client {
   db_pass: string;
   campaigns: string;
   ingroups: string;
+  is_active: number;
   created_at: string;
 }
 
