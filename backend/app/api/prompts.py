@@ -115,7 +115,6 @@ def update_prompt(
     db.refresh(prompt)
     return prompt
 
-
 @router.post("/test", response_model=PromptTestOut)
 async def test_prompt_with_recording(
     client_id: int = Form(...),
@@ -131,9 +130,11 @@ async def test_prompt_with_recording(
     transcript = (transcript_text or "").strip()
     if recording_file is not None:
         try:
-            transcript = await transcribe_uploaded_recording(recording_file)
+            # ✅ 🔥 FIX: Read file first (handles large files properly)
+            file_bytes = await recording_file.read()
+            transcript = await transcribe_uploaded_recording(file_bytes)
+
         except HTTPException:
-            # If STT fails but manual transcript is provided, continue testing with manual transcript.
             if transcript:
                 pass
             else:
@@ -174,7 +175,10 @@ async def test_active_prompt_with_recording(
     transcript = (transcript_text or "").strip()
     if recording_file is not None:
         try:
-            transcript = await transcribe_uploaded_recording(recording_file)
+            # ✅ 🔥 SAME FIX (IMPORTANT)
+            file_bytes = await recording_file.read()
+            transcript = await transcribe_uploaded_recording(file_bytes)
+
         except HTTPException:
             if not transcript:
                 raise
@@ -186,7 +190,14 @@ async def test_active_prompt_with_recording(
         )
 
     try:
-        audit_json = await run_ai_audit(prompt=active_prompt.prompt, transcript=transcript)
+        audit_json = await run_ai_audit(
+            prompt=active_prompt.prompt,
+            transcript=transcript
+        )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM request failed: {str(exc)}") from exc
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM request failed: {str(exc)}"
+        ) from exc
+
     return PromptTestOut(transcript=transcript, audit_json=audit_json)
