@@ -376,9 +376,9 @@ export default function SalesDashboard() {
             Real-time insights into call quality & conversions
           </p>
         </div>
-        <div className="text-xs bg-blue-100 px-3 py-1 rounded-full">
+        {/* <div className="text-xs bg-blue-100 px-3 py-1 rounded-full">
           Last updated: 2 mins ago
-        </div>
+        </div> */}
       </div>
 
       {/* 🔹 Filters */}
@@ -482,10 +482,10 @@ export default function SalesDashboard() {
             </div>
 
             {/* RIGHT SECTION */}
-            <button className="flex items-center gap-2 h-9 px-4 border rounded-md text-sm hover:bg-gray-100">
+            {/* <button className="flex items-center gap-2 h-9 px-4 border rounded-md text-sm hover:bg-gray-100">
             <Download className="w-4 h-4" />
             Export
-            </button>
+            </button> */}
 
         </div>
       </div>
