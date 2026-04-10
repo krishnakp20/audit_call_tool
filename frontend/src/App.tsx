@@ -8,6 +8,7 @@ import PromptBuilderPage from "@/pages/PromptBuilderPage";
 import CallLogsPage from "@/pages/CallLogsPage";
 import AuditDetailPage from "@/pages/AuditDetailPage";
 import SettingsPage from "@/pages/SettingsPage";
+import SalesDashboard from "@/pages/SalesPerformancePage";
 import { authStorage } from "@/services/auth";
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="calls" element={<CallLogsPage />} />
         <Route path="audit" element={<AuditDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="sales" element={<SalesDashboard />} />
       </Route>
     </Routes>
   );
