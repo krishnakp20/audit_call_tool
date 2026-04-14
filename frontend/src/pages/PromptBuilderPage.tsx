@@ -83,9 +83,7 @@ export default function PromptBuilderPage() {
       form.append("prompt", editorValue);
       if (testTranscript.trim()) form.append("transcript_text", testTranscript.trim());
       if (testFile) form.append("recording_file", testFile);
-      const { data } = await api.post("/prompts/test", form, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
+      const { data } = await api.post("/prompts/test", form);
       return data;
     },
     onSuccess: (data) => {
@@ -105,9 +103,7 @@ export default function PromptBuilderPage() {
       form.append("client_id", String(clientId));
       if (testTranscript.trim()) form.append("transcript_text", testTranscript.trim());
       if (testFile) form.append("recording_file", testFile);
-      const { data } = await api.post("/prompts/test-active", form, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
+      const { data } = await api.post("/prompts/test-active", form);
       return data;
     },
     onSuccess: (data) => {
