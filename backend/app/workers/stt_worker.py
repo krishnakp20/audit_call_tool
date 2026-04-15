@@ -12,17 +12,24 @@ from app.services.stt_service import transcribe_audio
 def run_once(limit: int = 20) -> int:
     db = SessionLocal()
     try:
-        calls = db.scalars(select(CallLog).where(CallLog.transcript.is_(None)).limit(limit)).all()
+        calls = db.scalars(select(CallLog).where(CallLog.transcript.is_(None) | (CallLog.transcript == "")).limit(limit)).all()
         processed = 0
         for call in calls:
             try:
+                if not call.recording_path:
+                    raise RuntimeError("Recording path missing")
+
                 transcript = asyncio.run(transcribe_audio(call.recording_path))
+
+                # ✅ handle empty transcript ALSO
+                if not transcript.strip():
+                    raise RuntimeError("Empty transcript returned")
+                call.transcript = transcript
             except Exception as exc:
                 print(f"[stt_worker] failed call_id={call.call_id}: {exc}")
-                continue
-            if transcript:
-                call.transcript = transcript
-                processed += 1
+                call.transcript = "[TRANSCRIPT_FAILED]"
+
+            processed += 1
         db.commit()
         print(f"[stt_worker] processed={processed}")
         return processed
