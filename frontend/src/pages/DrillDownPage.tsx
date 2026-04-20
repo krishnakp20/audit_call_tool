@@ -4,19 +4,52 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
 
+/* ================= TYPES ================= */
+
+type Client = {
+  id: number;
+  name: string;
+};
+
+type SubParam = {
+  name: string;
+  score: number;
+  max: number;
+  percent: number;
+};
+
+type AgentRow = {
+  name: string;
+  total: number;
+  [key: `sp_${number}`]: number;
+};
+
+type ParameterDrillResponse = {
+  max: number;
+  subParams: SubParam[];
+  agents: AgentRow[];
+};
+
+/* ================= COMPONENT ================= */
+
 export default function ParameterDrillPage() {
   const clientId = useUIStore((s) => s.selectedClientId);
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
-  const [fromDate, setFromDate] = useState(today.toISOString().slice(0, 10));
-  const [toDate, setToDate] = useState(today.toISOString().slice(0, 10));
-  const [dateFilter, setDateFilter] = useState("Today");
+  const [fromDate, setFromDate] = useState<string>(
+    today.toISOString().slice(0, 10)
+  );
+  const [toDate, setToDate] = useState<string>(
+    today.toISOString().slice(0, 10)
+  );
+  const [dateFilter, setDateFilter] = useState<string>("Today");
 
-  const [parameterIndex, setParameterIndex] = useState(0);
+  const [parameterIndex, setParameterIndex] = useState<number>(0);
 
-  // Clients
-  const clientsQuery = useQuery({
+  /* ================= CLIENTS ================= */
+
+  const clientsQuery = useQuery<Client[]>({
     queryKey: ["clients"],
     queryFn: async () => (await api.get("/clients")).data
   });
@@ -25,9 +58,10 @@ export default function ParameterDrillPage() {
     if (!clientId && clientsQuery.data?.length) {
       setClientId(clientsQuery.data[0].id);
     }
-  }, [clientId, clientsQuery.data]);
+  }, [clientId, clientsQuery.data, setClientId]);
 
-  // Date logic
+  /* ================= DATE LOGIC ================= */
+
   useEffect(() => {
     const today = new Date();
     let from = new Date();
@@ -49,15 +83,24 @@ export default function ParameterDrillPage() {
     }
 
     if (dateFilter !== "Custom Range") {
-      const format = (d) => d.toISOString().slice(0, 10);
+      const format = (d: Date): string =>
+        d.toISOString().slice(0, 10);
+
       setFromDate(format(from));
       setToDate(format(to));
     }
   }, [dateFilter]);
 
-  // API
-  const { data } = useQuery({
-    queryKey: ["parameter-drill", clientId, fromDate, toDate, parameterIndex],
+  /* ================= API ================= */
+
+  const { data } = useQuery<ParameterDrillResponse>({
+    queryKey: [
+      "parameter-drill",
+      clientId,
+      fromDate,
+      toDate,
+      parameterIndex
+    ],
     queryFn: async () => {
       const res = await api.get(
         `/sale-dashboard/parameter-drill?client_id=${clientId}&parameter_index=${parameterIndex}&date_from=${fromDate}&date_to=${toDate}`
@@ -67,11 +110,15 @@ export default function ParameterDrillPage() {
     enabled: !!clientId
   });
 
-  const getColor = (percent) => {
+  /* ================= HELPERS ================= */
+
+  const getColor = (percent: number): string => {
     if (percent >= 75) return "bg-green-500";
     if (percent >= 50) return "bg-orange-400";
     return "bg-red-500";
   };
+
+  /* ================= UI ================= */
 
   return (
     <div className="space-y-5">
@@ -93,8 +140,10 @@ export default function ParameterDrillPage() {
           onChange={(e) => setClientId(Number(e.target.value))}
           className="border h-9 px-2 rounded"
         >
-          {clientsQuery.data?.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+          {clientsQuery.data?.map((c: Client) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
 
@@ -111,14 +160,28 @@ export default function ParameterDrillPage() {
 
         {dateFilter === "Custom Range" && (
           <>
-            <input type="date" value={fromDate} onChange={(e)=>setFromDate(e.target.value)} />
-            <input type="date" value={toDate} onChange={(e)=>setToDate(e.target.value)} />
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setFromDate(e.target.value)
+              }
+            />
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setToDate(e.target.value)
+              }
+            />
           </>
         )}
 
         <select
           value={parameterIndex}
-          onChange={(e) => setParameterIndex(Number(e.target.value))}
+          onChange={(e) =>
+            setParameterIndex(Number(e.target.value))
+          }
           className="border h-9 px-2 rounded"
         >
           <option value={0}>Opening</option>
@@ -139,10 +202,12 @@ export default function ParameterDrillPage() {
           Max Score: {data?.max || 0}
         </h2>
 
-        {data?.subParams?.map((item, i) => (
+        {data?.subParams?.map((item: SubParam, i: number) => (
           <div key={i} className="flex items-center gap-3 mb-3">
 
-            <span className="w-[200px] text-sm">{item.name}</span>
+            <span className="w-[200px] text-sm">
+              {item.name}
+            </span>
 
             <div className="flex-1 bg-gray-200 h-3 rounded">
               <div
@@ -165,26 +230,28 @@ export default function ParameterDrillPage() {
 
         <table className="w-full text-sm">
           <thead>
-              <tr>
-                <th className="p-2 text-left">Agent</th>
+            <tr>
+              <th className="p-2 text-left">Agent</th>
 
-                {data?.subParams?.map((sp, i) => (
-                  <th key={i} className="p-2 text-center">
-                    {sp.name}
-                  </th>
-                ))}
+              {data?.subParams?.map((sp: SubParam, i: number) => (
+                <th key={i} className="p-2 text-center">
+                  {sp.name}
+                </th>
+              ))}
 
-                <th className="p-2 text-center">Total</th>
-              </tr>
-            </thead>
+              <th className="p-2 text-center">Total</th>
+            </tr>
+          </thead>
 
           <tbody>
-            {data?.agents?.map((a, i) => (
+            {data?.agents?.map((a: AgentRow, i: number) => (
               <tr key={i} className="border-b text-center">
                 <td className="text-left p-2">{a.name}</td>
-                {data.subParams.map((_, idx) => (
+
+                {data.subParams.map((_, idx: number) => (
                   <td key={idx}>{a[`sp_${idx}`]}</td>
                 ))}
+
                 <td className="font-semibold">{a.total}</td>
               </tr>
             ))}
@@ -196,3 +263,4 @@ export default function ParameterDrillPage() {
     </div>
   );
 }
+

@@ -4,18 +4,51 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
 
+/* ================= TYPES ================= */
+
+type Client = {
+  id: number;
+  name: string;
+};
+
+type Metric = {
+  name: string;
+  score: number;
+  max: number;
+};
+
+type AgentScorecard = {
+  agent_id: string;
+  name: string;
+  calls: number;
+  avgScore: number;
+  conversion: number;
+  metrics: Metric[];
+  strengths: string[];
+  gaps: string[];
+  coaching: string;
+};
+
+/* ================= COMPONENT ================= */
+
 export default function AgentScorecardsPage() {
   const clientId = useUIStore((s) => s.selectedClientId);
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
-  const [fromDate, setFromDate] = useState(today.toISOString().slice(0, 10));
-  const [toDate, setToDate] = useState(today.toISOString().slice(0, 10));
-  const [dateFilter, setDateFilter] = useState("Today");
+  const [fromDate, setFromDate] = useState<string>(
+    today.toISOString().slice(0, 10)
+  );
+  const [toDate, setToDate] = useState<string>(
+    today.toISOString().slice(0, 10)
+  );
+  const [dateFilter, setDateFilter] = useState<string>("Today");
 
-  const [selectedAgent, setSelectedAgent] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState<string>("");
 
-  const clientsQuery = useQuery({
+  /* ================= CLIENTS ================= */
+
+  const clientsQuery = useQuery<Client[]>({
     queryKey: ["clients"],
     queryFn: async () => (await api.get("/clients")).data
   });
@@ -24,9 +57,10 @@ export default function AgentScorecardsPage() {
     if (!clientId && clientsQuery.data?.length) {
       setClientId(clientsQuery.data[0].id);
     }
-  }, [clientId, clientsQuery.data]);
+  }, [clientId, clientsQuery.data, setClientId]);
 
-  // Date logic
+  /* ================= DATE LOGIC ================= */
+
   useEffect(() => {
     const today = new Date();
     let from = new Date();
@@ -39,21 +73,26 @@ export default function AgentScorecardsPage() {
 
     if (dateFilter === "Last 7 Days") {
       from.setDate(today.getDate() - 6);
+      to = today;
     }
 
     if (dateFilter === "Last 30 Days") {
       from.setDate(today.getDate() - 29);
+      to = today;
     }
 
     if (dateFilter !== "Custom Range") {
-      const format = (d) => d.toISOString().slice(0, 10);
+      const format = (d: Date): string =>
+        d.toISOString().slice(0, 10);
+
       setFromDate(format(from));
       setToDate(format(to));
     }
   }, [dateFilter]);
 
-  // API
-  const { data = [] } = useQuery({
+  /* ================= API ================= */
+
+  const { data = [] } = useQuery<AgentScorecard[]>({
     queryKey: ["agent-scorecards", clientId, fromDate, toDate],
     queryFn: async () => {
       const res = await api.get(
@@ -64,20 +103,26 @@ export default function AgentScorecardsPage() {
     enabled: !!clientId
   });
 
-  // default agent
+  /* ================= DEFAULT AGENT ================= */
+
   useEffect(() => {
     if (!selectedAgent && data.length) {
       setSelectedAgent(data[0].agent_id);
     }
-  }, [data]);
+  }, [data, selectedAgent]);
 
-  const agentData = data.find(a => a.agent_id === selectedAgent);
+  const agentData: AgentScorecard | undefined =
+    data.find((a: AgentScorecard) => a.agent_id === selectedAgent);
 
-  const getColor = (percent) => {
+  /* ================= HELPERS ================= */
+
+  const getColor = (percent: number): string => {
     if (percent >= 70) return "bg-green-500";
     if (percent >= 40) return "bg-orange-400";
     return "bg-red-500";
   };
+
+  /* ================= UI ================= */
 
   return (
     <div className="space-y-5">
@@ -91,13 +136,21 @@ export default function AgentScorecardsPage() {
       {/* HEADER */}
       <div className="bg-white border rounded-xl p-4 flex gap-3 flex-wrap">
 
-        <select value={clientId || ""} onChange={(e)=>setClientId(Number(e.target.value))}>
-          {clientsQuery.data?.map(c=>(
-            <option key={c.id} value={c.id}>{c.name}</option>
+        <select
+          value={clientId || ""}
+          onChange={(e) => setClientId(Number(e.target.value))}
+        >
+          {clientsQuery.data?.map((c: Client) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
 
-        <select value={dateFilter} onChange={(e)=>setDateFilter(e.target.value)}>
+        <select
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+        >
           <option>Today</option>
           <option>Last 7 Days</option>
           <option>Last 30 Days</option>
@@ -106,14 +159,29 @@ export default function AgentScorecardsPage() {
 
         {dateFilter === "Custom Range" && (
           <>
-            <input type="date" value={fromDate} onChange={(e)=>setFromDate(e.target.value)} />
-            <input type="date" value={toDate} onChange={(e)=>setToDate(e.target.value)} />
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setFromDate(e.target.value)
+              }
+            />
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setToDate(e.target.value)
+              }
+            />
           </>
         )}
 
         {/* Agent dropdown */}
-        <select value={selectedAgent} onChange={(e)=>setSelectedAgent(e.target.value)}>
-          {data.map(a=>(
+        <select
+          value={selectedAgent}
+          onChange={(e) => setSelectedAgent(e.target.value)}
+        >
+          {data.map((a: AgentScorecard) => (
             <option key={a.agent_id} value={a.agent_id}>
               {a.name}
             </option>
@@ -126,7 +194,9 @@ export default function AgentScorecardsPage() {
       {agentData && (
         <div className="bg-white border rounded-xl p-5 space-y-5">
 
-          <h2 className="font-semibold text-lg">{agentData.name}</h2>
+          <h2 className="font-semibold text-lg">
+            {agentData.name}
+          </h2>
 
           <p className="text-sm text-gray-600">
             {agentData.calls} calls · Avg {agentData.avgScore}% · Conversion {agentData.conversion}%
@@ -134,7 +204,7 @@ export default function AgentScorecardsPage() {
 
           {/* Metrics */}
           <div className="space-y-3">
-            {agentData.metrics.map((m, i) => {
+            {agentData.metrics.map((m: Metric, i: number) => {
               const percent = (m.score / m.max) * 100;
 
               return (
@@ -161,8 +231,11 @@ export default function AgentScorecardsPage() {
           {/* Strengths */}
           <div>
             <h3 className="text-sm font-medium">Strengths</h3>
-            {agentData.strengths.map((s, i)=>(
-              <div key={i} className="text-xs bg-green-100 px-2 py-1 rounded mt-1">
+            {agentData.strengths.map((s: string, i: number) => (
+              <div
+                key={i}
+                className="text-xs bg-green-100 px-2 py-1 rounded mt-1"
+              >
                 {s}
               </div>
             ))}
@@ -171,8 +244,11 @@ export default function AgentScorecardsPage() {
           {/* Gaps */}
           <div>
             <h3 className="text-sm font-medium">Gaps</h3>
-            {agentData.gaps.map((g, i)=>(
-              <div key={i} className="text-xs bg-red-100 px-2 py-1 rounded mt-1">
+            {agentData.gaps.map((g: string, i: number) => (
+              <div
+                key={i}
+                className="text-xs bg-red-100 px-2 py-1 rounded mt-1"
+              >
                 {g}
               </div>
             ))}

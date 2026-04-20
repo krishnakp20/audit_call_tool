@@ -4,18 +4,58 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
 
+/* ================= TYPES ================= */
+
+type Client = {
+  id: number;
+  name: string;
+};
+
+type SummaryItem = {
+  title: string;
+  value: number | string;
+  desc: string;
+};
+
+type LogItem = {
+  call: string;
+  agent: string;
+  flag: string;
+  impact: number | string;
+  score: number;
+  outcome: string;
+};
+
+type CapItem = {
+  title: string;
+  desc: string;
+};
+
+type CriticalFlagsResponse = {
+  summary: SummaryItem[];
+  logs: LogItem[];
+  caps: CapItem[];
+};
+
+/* ================= COMPONENT ================= */
+
 export default function CriticalFlagsPage() {
 
   const clientId = useUIStore((s) => s.selectedClientId);
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
-  const [fromDate, setFromDate] = useState(today.toISOString().slice(0,10));
-  const [toDate, setToDate] = useState(today.toISOString().slice(0,10));
-  const [dateFilter, setDateFilter] = useState("Today");
+  const [fromDate, setFromDate] = useState<string>(
+    today.toISOString().slice(0,10)
+  );
+  const [toDate, setToDate] = useState<string>(
+    today.toISOString().slice(0,10)
+  );
+  const [dateFilter, setDateFilter] = useState<string>("Today");
 
-  // Clients
-  const clientsQuery = useQuery({
+  /* ================= CLIENTS ================= */
+
+  const clientsQuery = useQuery<Client[]>({
     queryKey: ["clients"],
     queryFn: async () => (await api.get("/clients")).data
   });
@@ -24,26 +64,42 @@ export default function CriticalFlagsPage() {
     if (!clientId && clientsQuery.data?.length) {
       setClientId(clientsQuery.data[0].id);
     }
-  }, [clientId, clientsQuery.data]);
+  }, [clientId, clientsQuery.data, setClientId]);
 
-  // Date logic
+  /* ================= DATE LOGIC ================= */
+
   useEffect(() => {
     const today = new Date();
     let from = new Date();
     let to = new Date();
 
-    if (dateFilter === "Last 7 Days") from.setDate(today.getDate() - 6);
-    if (dateFilter === "Last 30 Days") from.setDate(today.getDate() - 29);
+    if (dateFilter === "Today") {
+      from = today;
+      to = today;
+    }
+
+    if (dateFilter === "Last 7 Days") {
+      from.setDate(today.getDate() - 6);
+      to = today;
+    }
+
+    if (dateFilter === "Last 30 Days") {
+      from.setDate(today.getDate() - 29);
+      to = today;
+    }
 
     if (dateFilter !== "Custom Range") {
-      const f = (d) => d.toISOString().slice(0,10);
+      const f = (d: Date): string =>
+        d.toISOString().slice(0,10);
+
       setFromDate(f(from));
       setToDate(f(to));
     }
   }, [dateFilter]);
 
-  // API
-  const { data } = useQuery({
+  /* ================= API ================= */
+
+  const { data } = useQuery<CriticalFlagsResponse>({
     queryKey: ["critical-flags", clientId, fromDate, toDate],
     queryFn: async () => {
       const res = await api.get(
@@ -54,15 +110,19 @@ export default function CriticalFlagsPage() {
     enabled: !!clientId
   });
 
-  const summary = data?.summary || [];
-  const logs = data?.logs || [];
-  const caps = data?.caps || [];
+  const summary: SummaryItem[] = data?.summary || [];
+  const logs: LogItem[] = data?.logs || [];
+  const caps: CapItem[] = data?.caps || [];
 
-  const getOutcomeColor = (outcome) => {
+  /* ================= HELPERS ================= */
+
+  const getOutcomeColor = (outcome: string): string => {
     if (outcome === "Not Converted") return "bg-red-100 text-red-600";
     if (outcome === "Partially Converted") return "bg-yellow-100 text-yellow-700";
     return "bg-green-100 text-green-700";
   };
+
+  /* ================= UI ================= */
 
   return (
     <div className="space-y-5">
@@ -76,7 +136,7 @@ export default function CriticalFlagsPage() {
         </p>
       </div>
 
-      {/* 🔹 INLINE HEADER */}
+      {/* HEADER */}
       <div className="bg-white border rounded-xl p-4 flex gap-3 flex-wrap">
 
         <select
@@ -84,8 +144,10 @@ export default function CriticalFlagsPage() {
           onChange={(e) => setClientId(Number(e.target.value))}
           className="h-9 border px-2 rounded"
         >
-          {clientsQuery.data?.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+          {clientsQuery.data?.map((c: Client) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
 
@@ -102,28 +164,48 @@ export default function CriticalFlagsPage() {
 
         {dateFilter === "Custom Range" && (
           <>
-            <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} />
-            <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} />
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setFromDate(e.target.value)
+              }
+            />
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setToDate(e.target.value)
+              }
+            />
           </>
         )}
       </div>
 
-      {/* 🔹 SUMMARY */}
+      {/* SUMMARY */}
       <div className="grid md:grid-cols-4 gap-4">
-        {summary.map((item, i) => (
+        {summary.map((item: SummaryItem, i: number) => (
           <div key={i} className="bg-white border rounded-xl p-4">
-            <p className="text-xs text-gray-500 uppercase">{item.title}</p>
-            <p className="text-2xl font-bold text-red-600">{item.value}</p>
-            <p className="text-sm text-gray-500">{item.desc}</p>
+            <p className="text-xs text-gray-500 uppercase">
+              {item.title}
+            </p>
+            <p className="text-2xl font-bold text-red-600">
+              {item.value}
+            </p>
+            <p className="text-sm text-gray-500">
+              {item.desc}
+            </p>
           </div>
         ))}
       </div>
 
-      {/* 🔹 TABLE */}
+      {/* TABLE */}
       <div className="bg-white border rounded-xl overflow-x-auto">
 
         <div className="p-4 border-b">
-          <h2 className="font-semibold">Critical flags — call log</h2>
+          <h2 className="font-semibold">
+            Critical flags — call log
+          </h2>
         </div>
 
         <table className="w-full text-sm">
@@ -139,7 +221,7 @@ export default function CriticalFlagsPage() {
           </thead>
 
           <tbody>
-            {logs.map((row, i) => (
+            {logs.map((row: LogItem, i: number) => (
               <tr key={i} className="border-b text-center">
 
                 <td className="p-2 text-left">{row.call}</td>
@@ -155,7 +237,9 @@ export default function CriticalFlagsPage() {
                 <td>{row.score}</td>
 
                 <td>
-                  <span className={`px-2 py-1 text-xs rounded ${getOutcomeColor(row.outcome)}`}>
+                  <span
+                    className={`px-2 py-1 text-xs rounded ${getOutcomeColor(row.outcome)}`}
+                  >
                     {row.outcome}
                   </span>
                 </td>
@@ -166,11 +250,11 @@ export default function CriticalFlagsPage() {
         </table>
       </div>
 
-      {/* 🔹 CAPS */}
+      {/* CAPS */}
       <div className="bg-white border rounded-xl p-4 space-y-4">
         <h2 className="font-semibold">Score cap tracker</h2>
 
-        {caps.map((c, i) => (
+        {caps.map((c: CapItem, i: number) => (
           <div key={i} className="flex gap-2">
             <span className="text-red-500">●</span>
             <div>
@@ -184,3 +268,4 @@ export default function CriticalFlagsPage() {
     </div>
   );
 }
+

@@ -4,18 +4,55 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
 
+/* ================= TYPES ================= */
+
+type Client = {
+  id: number;
+  name: string;
+};
+
+type SummaryItem = {
+  label: string;
+  percent: number;
+  desc: string;
+};
+
+type ProbabilityItem = {
+  label: string;
+  percent: number;
+};
+
+type DisqualificationItem = {
+  reason: string;
+  percent: number;
+  agent: string;
+};
+
+type LeadQualityResponse = {
+  summary: SummaryItem[];
+  probability: ProbabilityItem[];
+  disqualification: DisqualificationItem[];
+};
+
+/* ================= COMPONENT ================= */
+
 export default function LeadQualityPage() {
 
   const clientId = useUIStore((s) => s.selectedClientId);
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
-  const [fromDate, setFromDate] = useState(today.toISOString().slice(0,10));
-  const [toDate, setToDate] = useState(today.toISOString().slice(0,10));
-  const [dateFilter, setDateFilter] = useState("Today");
+  const [fromDate, setFromDate] = useState<string>(
+    today.toISOString().slice(0,10)
+  );
+  const [toDate, setToDate] = useState<string>(
+    today.toISOString().slice(0,10)
+  );
+  const [dateFilter, setDateFilter] = useState<string>("Today");
 
-  // Clients
-  const clientsQuery = useQuery({
+  /* ================= CLIENTS ================= */
+
+  const clientsQuery = useQuery<Client[]>({
     queryKey: ["clients"],
     queryFn: async () => (await api.get("/clients")).data
   });
@@ -24,9 +61,10 @@ export default function LeadQualityPage() {
     if (!clientId && clientsQuery.data?.length) {
       setClientId(clientsQuery.data[0].id);
     }
-  }, [clientId, clientsQuery.data]);
+  }, [clientId, clientsQuery.data, setClientId]);
 
-  // Date filter logic
+  /* ================= DATE LOGIC ================= */
+
   useEffect(() => {
     const today = new Date();
     let from = new Date();
@@ -48,14 +86,17 @@ export default function LeadQualityPage() {
     }
 
     if (dateFilter !== "Custom Range") {
-      const f = (d) => d.toISOString().slice(0,10);
+      const f = (d: Date): string =>
+        d.toISOString().slice(0,10);
+
       setFromDate(f(from));
       setToDate(f(to));
     }
   }, [dateFilter]);
 
-  // API call
-  const { data, isLoading } = useQuery({
+  /* ================= API ================= */
+
+  const { data, isLoading } = useQuery<LeadQualityResponse>({
     queryKey: ["lead-quality", clientId, fromDate, toDate],
     queryFn: async () => {
       const res = await api.get(
@@ -66,30 +107,31 @@ export default function LeadQualityPage() {
     enabled: !!clientId
   });
 
-  const summary = data?.summary || [];
-  const distribution = data?.probability || [];
-  const disqualification = data?.disqualification || [];
+  const summary: SummaryItem[] = data?.summary || [];
+  const distribution: ProbabilityItem[] = data?.probability || [];
+  const disqualification: DisqualificationItem[] = data?.disqualification || [];
 
-  // Colors (same as your UI)
-  const getLeadColor = (label) => {
+  /* ================= HELPERS ================= */
+
+  const getLeadColor = (label: string): string => {
     if (label.includes("Hot")) return "text-red-600";
     if (label.includes("Warm")) return "text-orange-500";
     return "text-blue-600";
   };
 
-  const getBarColor = (p) => {
+  const getBarColor = (p: number): string => {
     if (p >= 35) return "bg-red-500";
     if (p >= 25) return "bg-orange-400";
     return "bg-green-500";
   };
 
+  /* ================= UI ================= */
+
   return (
     <div className="space-y-5">
 
-      {/* 🔹 Tabs */}
       <DashboardTabs />
 
-      {/* 🔹 Header */}
       <div>
         <h1 className="text-xl font-semibold">Lead Quality</h1>
         <p className="text-sm text-gray-500">
@@ -97,7 +139,7 @@ export default function LeadQualityPage() {
         </p>
       </div>
 
-      {/* 🔹 Filter Header */}
+      {/* FILTER HEADER */}
       <div className="bg-white border rounded-xl p-4 flex gap-3 flex-wrap">
 
         <select
@@ -105,8 +147,10 @@ export default function LeadQualityPage() {
           onChange={(e) => setClientId(Number(e.target.value))}
           className="h-9 border px-2 rounded"
         >
-          {clientsQuery.data?.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+          {clientsQuery.data?.map((c: Client) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
 
@@ -126,13 +170,17 @@ export default function LeadQualityPage() {
             <input
               type="date"
               value={fromDate}
-              onChange={(e)=>setFromDate(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setFromDate(e.target.value)
+              }
               className="border px-2 rounded"
             />
             <input
               type="date"
               value={toDate}
-              onChange={(e)=>setToDate(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setToDate(e.target.value)
+              }
               className="border px-2 rounded"
             />
           </>
@@ -140,30 +188,33 @@ export default function LeadQualityPage() {
 
       </div>
 
-      {/* 🔹 Summary Cards */}
+      {/* SUMMARY */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {summary.map((s,i)=>(
+        {summary.map((s: SummaryItem, i: number) => (
           <div key={i} className="bg-white border rounded-xl p-4">
-            <p className="text-xs text-gray-500 uppercase">{s.label}</p>
+            <p className="text-xs text-gray-500 uppercase">
+              {s.label}
+            </p>
             <p className={`text-2xl font-bold ${getLeadColor(s.label)}`}>
               {s.percent}%
             </p>
-            <p className="text-sm text-gray-500">{s.desc}</p>
+            <p className="text-sm text-gray-500">
+              {s.desc}
+            </p>
           </div>
         ))}
       </div>
 
-      {/* 🔹 Middle Section */}
+      {/* MIDDLE */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        {/* ✅ RESTORED STATIC BLOCK */}
+        {/* STATIC */}
         <div className="bg-white border rounded-xl p-4">
           <h2 className="font-semibold mb-3">
             Lead quality classification breakdown
           </h2>
 
           <div className="space-y-3 text-sm">
-
             <div>
               <p className="font-medium text-red-600">● Hot lead signals</p>
               <p className="text-gray-600">
@@ -184,17 +235,16 @@ export default function LeadQualityPage() {
                 Low intent — avoids budget discussion, passive responses.
               </p>
             </div>
-
           </div>
         </div>
 
-        {/* 🔹 Probability Distribution */}
+        {/* DISTRIBUTION */}
         <div className="bg-white border rounded-xl p-4">
           <h2 className="font-semibold mb-3">
             Conversion probability distribution
           </h2>
 
-          {distribution.map((d,i)=>(
+          {distribution.map((d: ProbabilityItem, i: number) => (
             <div key={i} className="flex items-center gap-4 mb-3">
               <div className="w-[180px] text-sm text-gray-700">
                 {d.label}
@@ -220,7 +270,7 @@ export default function LeadQualityPage() {
 
       </div>
 
-      {/* 🔹 Bottom Table */}
+      {/* TABLE */}
       <div className="bg-white border rounded-xl overflow-x-auto">
 
         <div className="p-4 border-b">
@@ -241,7 +291,7 @@ export default function LeadQualityPage() {
           </thead>
 
           <tbody>
-            {disqualification.map((d,i)=>(
+            {disqualification.map((d: DisqualificationItem, i: number) => (
               <tr key={i} className="border-b hover:bg-gray-50">
                 <td className="p-2">{d.reason}</td>
                 <td className="text-center font-medium text-red-600">
