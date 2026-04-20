@@ -106,7 +106,7 @@ export const useAgentRecalculateSummary = (
   useQuery({
     queryKey: ["agent-recalculate-summary", clientId, fromDate, toDate],
     queryFn: async () => {
-      const { data } = await api.get<Record<string, AgentSummary>>(
+      const { data } = await api.get<any[]>(
         "/sale-dashboard/agent-recalculate-summary",
         {
           params: {
@@ -117,24 +117,24 @@ export const useAgentRecalculateSummary = (
         }
       );
 
-      return Object.entries(data).map(([agentId, value]) => ({
-        agentId,
-        totalCalls: value.total_calls,
-        score: value.avg_score,
-        conversion: value.conversion_pct,
-        partial: value.partial_pct,
-        noConv: value.no_conversion_pct,
+      // ✅ FIX: data is already array
+      return data.map((agent) => ({
+        agentId: agent.agentId,
+        totalCalls: agent.totalCalls,
+        score: agent.score,
+        conversion: agent.conversion,
+        partial: agent.partial,
+        noConv: agent.noConv,
 
-        // 🔥 formatted for UI
-        strength: value.strength
-          .replace("_", " ")
-          .replace(/\b\w/g, (c: string) => c.toUpperCase()),
+        strength: agent.strength
+          ?.replace("_", " ")
+          ?.replace(/\b\w/g, (c: string) => c.toUpperCase()),
 
-        gap: value.gap
-          .replace("_", " ")
-          .replace(/\b\w/g, (c: string) => c.toUpperCase()),
+        gap: agent.gap
+          ?.replace("_", " ")
+          ?.replace(/\b\w/g, (c: string) => c.toUpperCase()),
 
-        sections: value.sections
+        sections: agent.sections
       }));
     },
     enabled: !!clientId,

@@ -1,0 +1,186 @@
+import React, { useEffect, useMemo, useState } from "react";
+import DashboardTabs from "@/components/DashboardTabs";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/services/api";
+import { useUIStore } from "@/store/uiStore";
+
+export default function CriticalFlagsPage() {
+
+  const clientId = useUIStore((s) => s.selectedClientId);
+  const setClientId = useUIStore((s) => s.setClientId);
+
+  const today = useMemo(() => new Date(), []);
+  const [fromDate, setFromDate] = useState(today.toISOString().slice(0,10));
+  const [toDate, setToDate] = useState(today.toISOString().slice(0,10));
+  const [dateFilter, setDateFilter] = useState("Today");
+
+  // Clients
+  const clientsQuery = useQuery({
+    queryKey: ["clients"],
+    queryFn: async () => (await api.get("/clients")).data
+  });
+
+  useEffect(() => {
+    if (!clientId && clientsQuery.data?.length) {
+      setClientId(clientsQuery.data[0].id);
+    }
+  }, [clientId, clientsQuery.data]);
+
+  // Date logic
+  useEffect(() => {
+    const today = new Date();
+    let from = new Date();
+    let to = new Date();
+
+    if (dateFilter === "Last 7 Days") from.setDate(today.getDate() - 6);
+    if (dateFilter === "Last 30 Days") from.setDate(today.getDate() - 29);
+
+    if (dateFilter !== "Custom Range") {
+      const f = (d) => d.toISOString().slice(0,10);
+      setFromDate(f(from));
+      setToDate(f(to));
+    }
+  }, [dateFilter]);
+
+  // API
+  const { data } = useQuery({
+    queryKey: ["critical-flags", clientId, fromDate, toDate],
+    queryFn: async () => {
+      const res = await api.get(
+        `/sale-dashboard/critical-flags?client_id=${clientId}&date_from=${fromDate}&date_to=${toDate}`
+      );
+      return res.data;
+    },
+    enabled: !!clientId
+  });
+
+  const summary = data?.summary || [];
+  const logs = data?.logs || [];
+  const caps = data?.caps || [];
+
+  const getOutcomeColor = (outcome) => {
+    if (outcome === "Not Converted") return "bg-red-100 text-red-600";
+    if (outcome === "Partially Converted") return "bg-yellow-100 text-yellow-700";
+    return "bg-green-100 text-green-700";
+  };
+
+  return (
+    <div className="space-y-5">
+
+      <DashboardTabs />
+
+      <div>
+        <h1 className="text-xl font-semibold">Critical Flags</h1>
+        <p className="text-sm text-gray-500">
+          Key failure patterns impacting conversions
+        </p>
+      </div>
+
+      {/* 🔹 INLINE HEADER */}
+      <div className="bg-white border rounded-xl p-4 flex gap-3 flex-wrap">
+
+        <select
+          value={clientId ?? ""}
+          onChange={(e) => setClientId(Number(e.target.value))}
+          className="h-9 border px-2 rounded"
+        >
+          {clientsQuery.data?.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        <select
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+          className="h-9 border px-2 rounded"
+        >
+          <option>Today</option>
+          <option>Last 7 Days</option>
+          <option>Last 30 Days</option>
+          <option>Custom Range</option>
+        </select>
+
+        {dateFilter === "Custom Range" && (
+          <>
+            <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} />
+            <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} />
+          </>
+        )}
+      </div>
+
+      {/* 🔹 SUMMARY */}
+      <div className="grid md:grid-cols-4 gap-4">
+        {summary.map((item, i) => (
+          <div key={i} className="bg-white border rounded-xl p-4">
+            <p className="text-xs text-gray-500 uppercase">{item.title}</p>
+            <p className="text-2xl font-bold text-red-600">{item.value}</p>
+            <p className="text-sm text-gray-500">{item.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* 🔹 TABLE */}
+      <div className="bg-white border rounded-xl overflow-x-auto">
+
+        <div className="p-4 border-b">
+          <h2 className="font-semibold">Critical flags — call log</h2>
+        </div>
+
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="p-2 text-left">Call</th>
+              <th className="p-2 text-left">Agent</th>
+              <th className="p-2">Flag</th>
+              <th className="p-2">Impact</th>
+              <th className="p-2">Score</th>
+              <th className="p-2">Outcome</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {logs.map((row, i) => (
+              <tr key={i} className="border-b text-center">
+
+                <td className="p-2 text-left">{row.call}</td>
+                <td className="p-2 text-left">{row.agent}</td>
+
+                <td>
+                  <span className="px-2 py-1 text-xs rounded bg-red-100 text-red-600">
+                    {row.flag}
+                  </span>
+                </td>
+
+                <td className="text-red-500">{row.impact}</td>
+                <td>{row.score}</td>
+
+                <td>
+                  <span className={`px-2 py-1 text-xs rounded ${getOutcomeColor(row.outcome)}`}>
+                    {row.outcome}
+                  </span>
+                </td>
+
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 🔹 CAPS */}
+      <div className="bg-white border rounded-xl p-4 space-y-4">
+        <h2 className="font-semibold">Score cap tracker</h2>
+
+        {caps.map((c, i) => (
+          <div key={i} className="flex gap-2">
+            <span className="text-red-500">●</span>
+            <div>
+              <p className="text-sm font-medium">{c.title}</p>
+              <p className="text-sm text-gray-600">{c.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+    </div>
+  );
+}

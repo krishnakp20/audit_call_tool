@@ -17,6 +17,7 @@ import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
 import { Client } from "@/types";
 import { useQualitySummary, useRecalculateSummary, useAgentRecalculateSummary } from "@/hooks/useDashboardData";
+import DashboardTabs from "@/components/DashboardTabs";
 
 
 export default function SalesDashboard() {
@@ -100,7 +101,7 @@ export default function SalesDashboard() {
     }
   }, [fromDate]);
 
-  
+
 
   const prevRange = useMemo(() => {
     const from = new Date(fromDate);
@@ -277,36 +278,34 @@ export default function SalesDashboard() {
   // 🔹 Filtered agents
   // ✅ FIRST: format data
   const formattedAgents = useMemo(() => {
-    if (!agentSummary.data) return [];
+  if (!agentData.length) return [];
 
-    return agentSummary.data.map((agent: any) => ({
-        name: agent.agentId,
-        initials: agent.agentId.slice(0, 2),
-        calls: agent.totalCalls,
-        score: agent.score,
-        conversion: agent.conversion,
-        partial: agent.partial,
-        noConv: agent.noConv,
-        strength: agent.strength,
-        gap: agent.gap,
+  return agentData.map((agent: any) => ({
+    name: agent.agentId,
+    initials: agent.agentId?.slice(0, 2) || "--",
+    calls: agent.totalCalls ?? 0,
+    score: agent.score ?? 0,
+    conversion: agent.conversion ?? 0,
+    partial: agent.partial ?? 0,
+    noConv: agent.noConv ?? 0,
+    strength: agent.strength ?? "-",
+    gap: agent.gap ?? "-",
 
-        details: Object.entries(agent.sections).map(([key, val]: any) => ({
-        label: key
-            .replace("_", " ")
-            .replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        value: val.score,
-        total: val.total_possible,
-        color:
-            val.percentage >= 80
-            ? "text-green-600"
-            : val.percentage >= 60
-            ? "text-blue-600"
-            : val.percentage >= 40
-            ? "text-amber-600"
-            : "text-red-600"
-        }))
-    }));
-  }, [agentSummary.data]);
+    details: Object.entries(agent.sections || {}).map(([key, val]: any) => ({
+      label: key, // ⚠️ IMPORTANT: don't modify key (your API already clean)
+      value: val.score ?? 0,
+      total: val.total_possible ?? 0,
+      color:
+        val.percentage >= 80
+          ? "text-green-600"
+          : val.percentage >= 60
+          ? "text-blue-600"
+          : val.percentage >= 40
+          ? "text-amber-600"
+          : "text-red-600"
+    }))
+  }));
+}, [agentData]);
 
   // ✅ SECOND: filter
   const filteredAgents = useMemo(() => {
@@ -320,6 +319,7 @@ export default function SalesDashboard() {
         return matchesDropdown && matchesSearch;
     });
   }, [agentFilter, searchTerm, formattedAgents]);
+console.log(filteredAgents,"filteredAgents==")
 
 
 
@@ -339,7 +339,7 @@ export default function SalesDashboard() {
   });
 
 
-  
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload || !payload.length) return null;
 
@@ -368,6 +368,8 @@ export default function SalesDashboard() {
 
   return (
     <div className="space-y-5">
+      {/* 🔹 Tabs */}
+        <DashboardTabs />
       {/* 🔹 Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -384,7 +386,7 @@ export default function SalesDashboard() {
       {/* 🔹 Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-center justify-between">
-            
+
             {/* LEFT SECTION */}
             <div className="flex flex-wrap gap-3 items-center flex-1">
 
@@ -436,7 +438,7 @@ export default function SalesDashboard() {
                         className="h-9 border rounded-md px-2 text-sm"
                     />
                     </>
-                )}  
+                )}
             </div>
 
             {/* Agent Filter */}
@@ -520,11 +522,11 @@ export default function SalesDashboard() {
         <MetricCard title="No Conversion" value="39.5%" growth="-3.1%" type="red" />
         <MetricCard title="Avg Quality Score" value="76.8%" growth="+3.4%" type="purple" /> */}
 
-        <MetricCard 
-        title="Total Calls" 
-        value={stats.totalCalls} 
+        <MetricCard
+        title="Total Calls"
+        value={stats.totalCalls}
         growth={formatGrowth(dashboardStats?.totalCalls.growth)}
-        type="blue" 
+        type="blue"
         />
 
         <MetricCard
@@ -553,7 +555,7 @@ export default function SalesDashboard() {
         value={`${stats.avgQuality.toFixed(2)}%`}
         growth={formatGrowth(dashboardStats?.quality.growth)}
         type="purple"
-        />  
+        />
       </div>
 
       {/* 🔹 Chart */}
@@ -564,7 +566,7 @@ export default function SalesDashboard() {
 
         <ResponsiveContainer width="100%" height={400}>
             <BarChart data={chartDataWithPercent} margin={{ top: 20, right: 20, left: 20, bottom: 80 }}>
-            
+
             {/* Grid */}
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
 
@@ -633,7 +635,7 @@ export default function SalesDashboard() {
 
       {/* 🔹 Agent Performance Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        
+
         <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">
             Agent Performance
@@ -642,7 +644,7 @@ export default function SalesDashboard() {
 
         <div className="overflow-x-auto">
             <table className="w-full text-sm">
-            
+
             {/* Header */}
             <thead className="border-b bg-gray-50">
                 <tr>
@@ -661,8 +663,8 @@ export default function SalesDashboard() {
             {/* Body */}
             <tbody>
             {filteredAgents.map((agent, index) => (
-                <React.Fragment key={index}>
-                
+                <React.Fragment key={agent.name}>
+
                 {/* 🔹 Main Row */}
                 <tr
                     onClick={() => toggleRow(index)}
@@ -763,10 +765,10 @@ export default function SalesDashboard() {
                     </td>
                     </tr>
                 )}
-                
+
                 </React.Fragment>
             ))}
-            </tbody>  
+            </tbody>
             </table>
         </div>
       </div>

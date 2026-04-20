@@ -1,0 +1,198 @@
+import React, { useEffect, useMemo, useState } from "react";
+import DashboardTabs from "@/components/DashboardTabs";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/services/api";
+import { useUIStore } from "@/store/uiStore";
+
+export default function ParameterDrillPage() {
+  const clientId = useUIStore((s) => s.selectedClientId);
+  const setClientId = useUIStore((s) => s.setClientId);
+
+  const today = useMemo(() => new Date(), []);
+  const [fromDate, setFromDate] = useState(today.toISOString().slice(0, 10));
+  const [toDate, setToDate] = useState(today.toISOString().slice(0, 10));
+  const [dateFilter, setDateFilter] = useState("Today");
+
+  const [parameterIndex, setParameterIndex] = useState(0);
+
+  // Clients
+  const clientsQuery = useQuery({
+    queryKey: ["clients"],
+    queryFn: async () => (await api.get("/clients")).data
+  });
+
+  useEffect(() => {
+    if (!clientId && clientsQuery.data?.length) {
+      setClientId(clientsQuery.data[0].id);
+    }
+  }, [clientId, clientsQuery.data]);
+
+  // Date logic
+  useEffect(() => {
+    const today = new Date();
+    let from = new Date();
+    let to = new Date();
+
+    if (dateFilter === "Today") {
+      from = today;
+      to = today;
+    }
+
+    if (dateFilter === "Last 7 Days") {
+      from.setDate(today.getDate() - 6);
+      to = today;
+    }
+
+    if (dateFilter === "Last 30 Days") {
+      from.setDate(today.getDate() - 29);
+      to = today;
+    }
+
+    if (dateFilter !== "Custom Range") {
+      const format = (d) => d.toISOString().slice(0, 10);
+      setFromDate(format(from));
+      setToDate(format(to));
+    }
+  }, [dateFilter]);
+
+  // API
+  const { data } = useQuery({
+    queryKey: ["parameter-drill", clientId, fromDate, toDate, parameterIndex],
+    queryFn: async () => {
+      const res = await api.get(
+        `/sale-dashboard/parameter-drill?client_id=${clientId}&parameter_index=${parameterIndex}&date_from=${fromDate}&date_to=${toDate}`
+      );
+      return res.data;
+    },
+    enabled: !!clientId
+  });
+
+  const getColor = (percent) => {
+    if (percent >= 75) return "bg-green-500";
+    if (percent >= 50) return "bg-orange-400";
+    return "bg-red-500";
+  };
+
+  return (
+    <div className="space-y-5">
+
+      <DashboardTabs />
+
+      <div>
+        <h1 className="text-xl font-semibold">Parameter Drill-down</h1>
+        <p className="text-sm text-gray-500">
+          Sub-parameter level performance breakdown
+        </p>
+      </div>
+
+      {/* HEADER */}
+      <div className="bg-white border rounded-xl p-4 flex gap-3 flex-wrap">
+
+        <select
+          value={clientId || ""}
+          onChange={(e) => setClientId(Number(e.target.value))}
+          className="border h-9 px-2 rounded"
+        >
+          {clientsQuery.data?.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        <select
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+          className="border h-9 px-2 rounded"
+        >
+          <option>Today</option>
+          <option>Last 7 Days</option>
+          <option>Last 30 Days</option>
+          <option>Custom Range</option>
+        </select>
+
+        {dateFilter === "Custom Range" && (
+          <>
+            <input type="date" value={fromDate} onChange={(e)=>setFromDate(e.target.value)} />
+            <input type="date" value={toDate} onChange={(e)=>setToDate(e.target.value)} />
+          </>
+        )}
+
+        <select
+          value={parameterIndex}
+          onChange={(e) => setParameterIndex(Number(e.target.value))}
+          className="border h-9 px-2 rounded"
+        >
+          <option value={0}>Opening</option>
+          <option value={1}>Purpose</option>
+          <option value={2}>Discovery</option>
+          <option value={3}>Objection</option>
+          <option value={4}>Control</option>
+          <option value={5}>Closing</option>
+          <option value={6}>CX</option>
+        </select>
+
+      </div>
+
+      {/* SUB PARAM */}
+      <div className="bg-white border rounded-xl p-4">
+
+        <h2 className="font-semibold mb-4">
+          Max Score: {data?.max || 0}
+        </h2>
+
+        {data?.subParams?.map((item, i) => (
+          <div key={i} className="flex items-center gap-3 mb-3">
+
+            <span className="w-[200px] text-sm">{item.name}</span>
+
+            <div className="flex-1 bg-gray-200 h-3 rounded">
+              <div
+                className={`h-3 rounded ${getColor(item.percent)}`}
+                style={{ width: `${item.percent}%` }}
+              />
+            </div>
+
+            <span className="text-sm w-[120px] text-right">
+              {item.score}/{item.max} ({item.percent}%)
+            </span>
+
+          </div>
+        ))}
+
+      </div>
+
+      {/* AGENT TABLE */}
+      <div className="bg-white border rounded-xl overflow-x-auto">
+
+        <table className="w-full text-sm">
+          <thead>
+              <tr>
+                <th className="p-2 text-left">Agent</th>
+
+                {data?.subParams?.map((sp, i) => (
+                  <th key={i} className="p-2 text-center">
+                    {sp.name}
+                  </th>
+                ))}
+
+                <th className="p-2 text-center">Total</th>
+              </tr>
+            </thead>
+
+          <tbody>
+            {data?.agents?.map((a, i) => (
+              <tr key={i} className="border-b text-center">
+                <td className="text-left p-2">{a.name}</td>
+                {data.subParams.map((_, idx) => (
+                  <td key={idx}>{a[`sp_${idx}`]}</td>
+                ))}
+                <td className="font-semibold">{a.total}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+      </div>
+
+    </div>
+  );
+}

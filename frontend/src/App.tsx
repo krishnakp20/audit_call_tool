@@ -10,6 +10,14 @@ import AuditDetailPage from "@/pages/AuditDetailPage";
 import SettingsPage from "@/pages/SettingsPage";
 import SalesDashboard from "@/pages/SalesPerformancePage";
 import { authStorage } from "@/services/auth";
+import ConversationPage from "@/pages/ConversationPage";
+import CallAuditLogPage from "@/pages/CallAuditLogPage";
+import DrillDownPage from "@/pages/DrillDownPage";
+import ScorecardsPage from "@/pages/ScorecardsPage";
+import LeadQualityPage from "@/pages/LeadQualityPage";
+import FlagsPage from "@/pages/FlagsPage";
+import CoachingPage from "@/pages/CoachingPage";
+
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
   if (!authStorage.getToken()) {
@@ -36,7 +44,18 @@ export default function App() {
         <Route path="calls" element={<CallLogsPage />} />
         <Route path="audit" element={<AuditDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="sales" element={<SalesDashboard />} />
+        <Route path="sales">
+          {/* Default tab → Overview */}
+          <Route index element={<SalesDashboard />} />
+
+          <Route path="conversation" element={<ConversationPage />} />
+          <Route path="audit-log" element={<CallAuditLogPage />} />
+          <Route path="drill-down" element={<DrillDownPage />} />
+          <Route path="scorecards" element={<ScorecardsPage/>} />
+          <Route path="lead-quality" element={<LeadQualityPage/>} />
+          <Route path="flags" element={<FlagsPage/>} />
+          <Route path="coaching" element={<CoachingPage/>} />
+        </Route>
       </Route>
     </Routes>
   );
