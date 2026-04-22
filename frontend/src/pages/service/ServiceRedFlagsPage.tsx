@@ -20,77 +20,10 @@ type Row = {
   note: string;
 };
 
-/* ================= STATIC DATA ================= */
-
-const TOP_CARDS = [
-  {
-    title: "Critical fails",
-    value: 31,
-    note: "Score below 50%",
-    color: "text-red-600"
-  },
-  {
-    title: "Wrong info flagged",
-    value: 34,
-    note: "Score zeroed on param",
-    color: "text-red-600"
-  },
-  {
-    title: "Rude / unprofessional",
-    value: 6,
-    note: "Full call score zeroed",
-    color: "text-red-600"
-  },
-  {
-    title: "Repeat complaint risk",
-    value: 44,
-    note: "Likely callback calls",
-    color: "text-orange-600"
-  }
-];
-
-const ROWS: Row[] = [
-  {
-    id: "CS-2040",
-    agent: "Rakesh V.",
-    flag: "Wrong info",
-    score: 44,
-    impact: "Param zeroed",
-    note: "Told customer refund in 1hr — not guaranteed"
-  },
-  {
-    id: "CS-2034",
-    agent: "Amit K.",
-    flag: "No resolution",
-    score: 48,
-    impact: "-14 pts",
-    note: "Call ended before issue confirmed resolved"
-  },
-  {
-    id: "CS-2029",
-    agent: "Rakesh V.",
-    flag: "Rude tone",
-    score: 0,
-    impact: "Full zero",
-    note: "Professional language parameter triggered"
-  },
-  {
-    id: "CS-2021",
-    agent: "Priya M.",
-    flag: "Premature solve",
-    score: 56,
-    impact: "-6 pts",
-    note: "Solution before probing complete"
-  },
-  {
-    id: "CS-2018",
-    agent: "Rakesh V.",
-    flag: "No closing",
-    score: 41,
-    impact: "-12 pts",
-    note: "No summary, confirmation, or goodbye"
-  }
-];
+type ApiResponse = {
+  top_cards: any[];
+  rows: Row[];
+};
 
 /* ================= HELPERS ================= */
 
@@ -115,11 +48,12 @@ export default function RedFlagsPage() {
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
+
   const [dateFilter, setDateFilter] = useState("Today");
   const [fromDate, setFromDate] = useState(today.toISOString().slice(0, 10));
   const [toDate, setToDate] = useState(today.toISOString().slice(0, 10));
 
-  /* ================= CLIENT API ================= */
+  /* ================= CLIENT ================= */
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["clients"],
@@ -130,9 +64,9 @@ export default function RedFlagsPage() {
     if (!clientId && clients?.length) {
       setClientId(clients[0].id);
     }
-  }, [clients, clientId]);
+  }, [clients, clientId, setClientId]);
 
-  /* ================= DATE FILTER ================= */
+  /* ================= DATE FIX (IMPORTANT) ================= */
 
   useEffect(() => {
     const today = new Date();
@@ -146,10 +80,12 @@ export default function RedFlagsPage() {
 
     if (dateFilter === "Last 7 Days") {
       from.setDate(today.getDate() - 6);
+      to = today;
     }
 
     if (dateFilter === "Last 30 Days") {
       from.setDate(today.getDate() - 29);
+      to = today;
     }
 
     if (dateFilter !== "Custom Range") {
@@ -158,6 +94,22 @@ export default function RedFlagsPage() {
       setToDate(format(to));
     }
   }, [dateFilter]);
+
+  /* ================= API ================= */
+
+  const { data, isLoading } = useQuery<ApiResponse>({
+    queryKey: ["red-flags", clientId, fromDate, toDate],
+    queryFn: async () => {
+      const res = await api.get(
+        `/service-dashboard/red-flags?client_id=${clientId}&date_from=${fromDate}&date_to=${toDate}`
+      );
+      return res.data;
+    },
+    enabled: !!clientId
+  });
+
+  const topCards = data?.top_cards || [];
+  const rows = data?.rows || [];
 
   /* ================= UI ================= */
 
@@ -168,14 +120,15 @@ export default function RedFlagsPage() {
 
       <h1 className="text-xl font-semibold">Red flags</h1>
 
-      {/* ================= FILTERS ================= */}
+      {/* FILTER */}
       <div className="bg-white border rounded-xl p-4 flex flex-wrap gap-3">
 
         <select
-          value={clientId || ""}
+          value={clientId ?? ""}
           onChange={(e) => setClientId(Number(e.target.value))}
           className="border h-9 px-2 rounded"
         >
+          {!clientId && <option value="">Select Client</option>}
           {clients?.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
@@ -194,28 +147,39 @@ export default function RedFlagsPage() {
 
         {dateFilter === "Custom Range" && (
           <>
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="border h-9 px-2 rounded"/>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="border h-9 px-2 rounded"/>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="border h-9 px-2 rounded"
+            />
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="border h-9 px-2 rounded"
+            />
           </>
         )}
       </div>
 
-      {/* ================= TOP CARDS ================= */}
+      {isLoading && <div className="text-center py-10">Loading...</div>}
+
+      {/* TOP CARDS */}
       <div className="grid grid-cols-4 gap-4">
-        {TOP_CARDS.map((c, i) => (
+        {topCards.map((c, i) => (
           <div key={i} className="bg-white border rounded-xl p-4">
             <div className="text-sm text-gray-500 uppercase">{c.title}</div>
             <div className={`text-2xl font-semibold ${c.color}`}>
-              {c.value}
+              {c.value}%
             </div>
             <div className="text-sm text-gray-500">{c.note}</div>
           </div>
         ))}
       </div>
 
-      {/* ================= TABLE ================= */}
+      {/* TABLE */}
       <div className="bg-white border rounded-xl p-5">
-
         <h2 className="font-semibold mb-4">Red flag call log</h2>
 
         <div className="overflow-x-auto">
@@ -233,35 +197,42 @@ export default function RedFlagsPage() {
             </thead>
 
             <tbody>
-              {ROWS.map((r, i) => (
-                <tr key={i} className="border-b text-center">
-
-                  <td className="text-left py-2">{r.id}</td>
-                  <td className="text-left">{r.agent}</td>
-
-                  <td>
-                    <span className={`px-2 py-1 text-xs rounded-full ${getFlagStyle(r.flag)}`}>
-                      {r.flag}
-                    </span>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-6 text-gray-400">
+                    No data found
                   </td>
-
-                  <td className={getScoreColor(r.score)}>
-                    {r.score}%
-                  </td>
-
-                  <td className="text-red-600">{r.impact}</td>
-
-                  <td className="text-left text-gray-600">
-                    {r.note}
-                  </td>
-
                 </tr>
-              ))}
+              ) : (
+                rows.map((r, i) => (
+                  <tr key={i} className="border-b text-center">
+
+                    <td className="text-left py-2">{r.id}</td>
+                    <td className="text-left">{r.agent}</td>
+
+                    <td>
+                      <span className={`px-2 py-1 text-xs rounded-full ${getFlagStyle(r.flag)}`}>
+                        {r.flag}
+                      </span>
+                    </td>
+
+                    <td className={getScoreColor(r.score)}>
+                      {r.score}%
+                    </td>
+
+                    <td className="text-red-600">{r.impact}</td>
+
+                    <td className="text-left text-gray-600">
+                      {r.note}
+                    </td>
+
+                  </tr>
+                ))
+              )}
             </tbody>
 
           </table>
         </div>
-
       </div>
 
     </div>

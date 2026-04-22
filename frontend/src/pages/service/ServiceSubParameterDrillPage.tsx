@@ -28,72 +28,22 @@ type AgentRow = {
   voice: number;
 };
 
-/* ================= STATIC DATA ================= */
+type ApiResponse = {
+  sub_params: SubParam[];
+  agents: AgentRow[];
+  agent_list: string[];
+};
 
-const SUB_PARAMS: SubParam[] = [
-  { label: "Greeting presence", value: 88 },
-  { label: "Company identification", value: 86 },
-  { label: "Agent identification", value: 71 },
-  { label: "Offer of help", value: 68 },
-  { label: "Opening clarity and flow", value: 74 },
-  { label: "Late opening", value: 79, late: 21 },
-  { label: "Voice energy", value: 58 }
-];
+/* ================= HELPERS ================= */
 
-const AGENT_ROWS: AgentRow[] = [
-  {
-    name: "Rahul S.",
-    greeting: 95,
-    company: 92,
-    agent: 88,
-    help: 82,
-    clarity: 85,
-    late: 90,
-    voice: 78
-  },
-  {
-    name: "Neha T.",
-    greeting: 98,
-    company: 94,
-    agent: 72,
-    help: 80,
-    clarity: 88,
-    late: 91,
-    voice: 64
-  },
-  {
-    name: "Amit K.",
-    greeting: 84,
-    company: 88,
-    agent: 68,
-    help: 65,
-    clarity: 70,
-    late: 74,
-    voice: 55
-  },
-  {
-    name: "Priya M.",
-    greeting: 82,
-    company: 74,
-    agent: 65,
-    help: 60,
-    clarity: 66,
-    late: 70,
-    voice: 44
-  },
-  {
-    name: "Rakesh V.",
-    greeting: 74,
-    company: 68,
-    agent: 48,
-    help: 44,
-    clarity: 42,
-    late: 62,
-    voice: 38
-  }
-];
+const safe = (v: any) =>
+  v === null || v === undefined || isNaN(v) ? 0 : v;
 
-const AGENTS = ["Rahul S.", "Neha T.", "Amit K.", "Priya M.", "Rakesh V."];
+const getColor = (v: number) => {
+  if (v >= 80) return "bg-green-500";
+  if (v >= 60) return "bg-orange-500";
+  return "bg-red-500";
+};
 
 /* ================= COMPONENT ================= */
 
@@ -102,25 +52,27 @@ export default function SubParameterDrillPage() {
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
+
   const [dateFilter, setDateFilter] = useState("Today");
   const [fromDate, setFromDate] = useState(today.toISOString().slice(0, 10));
   const [toDate, setToDate] = useState(today.toISOString().slice(0, 10));
-  const [selectedAgent, setSelectedAgent] = useState(AGENTS[0]);
+  const [selectedAgent, setSelectedAgent] = useState("");
 
-  /* ================= CLIENT API ================= */
+  /* ================= CLIENT ================= */
 
-  const { data: clients } = useQuery<Client[]>({
+  const { data: clients, isLoading: clientLoading } = useQuery<Client[]>({
     queryKey: ["clients"],
     queryFn: async () => (await api.get("/clients")).data
   });
 
+  /* ✅ AUTO SELECT CLIENT */
   useEffect(() => {
     if (!clientId && clients?.length) {
       setClientId(clients[0].id);
     }
   }, [clients, clientId]);
 
-  /* ================= DATE FILTER ================= */
+  /* ================= DATE FIX ================= */
 
   useEffect(() => {
     const today = new Date();
@@ -134,14 +86,13 @@ export default function SubParameterDrillPage() {
 
     if (dateFilter === "Last 7 Days") {
       from.setDate(today.getDate() - 6);
-      to = today;
     }
 
     if (dateFilter === "Last 30 Days") {
       from.setDate(today.getDate() - 29);
-      to = today;
     }
 
+    // ✅ IMPORTANT: don't override custom range
     if (dateFilter !== "Custom Range") {
       const format = (d: Date) => d.toISOString().slice(0, 10);
       setFromDate(format(from));
@@ -149,13 +100,29 @@ export default function SubParameterDrillPage() {
     }
   }, [dateFilter]);
 
-  /* ================= HELPERS ================= */
+  /* ================= API ================= */
 
-  const getColor = (v: number) => {
-    if (v >= 80) return "bg-green-500";
-    if (v >= 60) return "bg-orange-500";
-    return "bg-red-500";
-  };
+  const { data, isLoading } = useQuery<ApiResponse>({
+    queryKey: ["sub-param", clientId, fromDate, toDate, selectedAgent],
+    queryFn: async () => {
+      const res = await api.get(
+        `/service-dashboard/sub-parameter-drill?client_id=${clientId}&date_from=${fromDate}&date_to=${toDate}&agent=${selectedAgent}`
+      );
+      return res.data;
+    },
+    enabled: !!clientId
+  });
+
+  /* ✅ AUTO SELECT AGENT */
+  useEffect(() => {
+    if (data?.agent_list?.length && !selectedAgent) {
+      setSelectedAgent(data.agent_list[0]);
+    }
+  }, [data, selectedAgent]);
+
+  const subParams = data?.sub_params || [];
+  const agentRows = data?.agents || [];
+  const agents = data?.agent_list || [];
 
   /* ================= UI ================= */
 
@@ -166,15 +133,16 @@ export default function SubParameterDrillPage() {
 
       <h1 className="text-xl font-semibold">Sub-parameter drill</h1>
 
-      {/* ================= FILTER HEADER ================= */}
-      <div className="bg-white border rounded-xl p-4 flex flex-wrap gap-3 items-center">
+      {/* ================= HEADER ================= */}
+      <div className="bg-white border rounded-xl p-4 flex flex-wrap gap-3">
 
-        {/* Client */}
+        {/* CLIENT */}
         <select
-          value={clientId || ""}
+          value={clientId ?? ""}
           onChange={(e) => setClientId(Number(e.target.value))}
-          className="border h-9 px-2 rounded min-w-[160px]"
+          className="border h-9 px-2 rounded"
         >
+          {!clientId && <option value="">Select Client</option>}
           {clients?.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -182,7 +150,7 @@ export default function SubParameterDrillPage() {
           ))}
         </select>
 
-        {/* Date */}
+        {/* DATE FILTER */}
         <select
           value={dateFilter}
           onChange={(e) => setDateFilter(e.target.value)}
@@ -194,6 +162,7 @@ export default function SubParameterDrillPage() {
           <option>Custom Range</option>
         </select>
 
+        {/* ✅ CUSTOM DATE INPUT */}
         {dateFilter === "Custom Range" && (
           <>
             <input
@@ -211,98 +180,101 @@ export default function SubParameterDrillPage() {
           </>
         )}
 
-        {/* Agent */}
+        {/* AGENT */}
         <select
-          value={selectedAgent}
+          value={selectedAgent || ""}
           onChange={(e) => setSelectedAgent(e.target.value)}
           className="border h-9 px-2 rounded"
         >
-          {AGENTS.map((a) => (
-            <option key={a}>{a}</option>
+          {agents.length === 0 && <option value="">No agents</option>}
+          {agents.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
           ))}
         </select>
 
       </div>
 
-      {/* ================= OPENING SECTION ================= */}
-      <div className="bg-white border rounded-xl p-5 space-y-4">
+      {/* ================= LOADING ================= */}
+      {(isLoading || clientLoading) && (
+        <div className="text-center py-10 text-gray-500">
+          Loading...
+        </div>
+      )}
 
-        <h2 className="font-semibold">Opening (14 pts)</h2>
+      {/* ================= SUB PARAMS ================= */}
+      {!isLoading && (
+        <div className="bg-white border rounded-xl p-5 space-y-3">
+          <h2 className="font-semibold">Opening</h2>
 
-        {/* Sub params */}
-        <div className="space-y-3">
-          {SUB_PARAMS.map((p, i) => (
+          {subParams.map((p, i) => (
             <div key={i} className="flex items-center gap-3">
 
               <div className="w-56 text-sm">{p.label}</div>
 
               <div className="flex-1 bg-gray-200 h-2 rounded">
                 <div
-                  className={`h-2 rounded ${getColor(p.value)}`}
-                  style={{ width: `${p.value}%` }}
+                  className={`h-2 rounded ${getColor(safe(p.value))}`}
+                  style={{ width: `${safe(p.value)}%` }}
                 />
               </div>
 
               <div className="w-16 text-sm text-right">
-                {p.value}%
-                {p.late && (
-                  <span className="text-red-500 text-xs ml-1">
-                    {p.late}% late
-                  </span>
-                )}
+                {safe(p.value)}%
               </div>
 
             </div>
           ))}
         </div>
-
-      </div>
+      )}
 
       {/* ================= TABLE ================= */}
-      <div className="bg-white border rounded-xl p-5">
+      {!isLoading && (
+        <div className="bg-white border rounded-xl p-5">
+          <h3 className="mb-3">Agent view</h3>
 
-        <h3 className="font-medium mb-3">
-          Opening — by agent (sub-parameter view)
-        </h3>
+          <table className="w-full text-sm text-center">
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-
-            <thead className="text-gray-500 border-b">
+            <thead className="border-b">
               <tr>
-                <th className="text-left py-2">Agent</th>
+                <th className="text-left">Agent</th>
                 <th>Greeting</th>
-                <th>Company ID</th>
-                <th>Agent Name</th>
-                <th>Help Offer</th>
+                <th>Company</th>
+                <th>Agent</th>
+                <th>Help</th>
                 <th>Clarity</th>
-                <th>Late Open</th>
+                <th>Late</th>
                 <th>Voice</th>
               </tr>
             </thead>
 
             <tbody>
-              {AGENT_ROWS.map((a, i) => (
-                <tr key={i} className="border-b text-center">
-
-                  <td className="text-left py-2">{a.name}</td>
-
-                  <td className="text-green-600">{a.greeting}%</td>
-                  <td className="text-green-600">{a.company}%</td>
-                  <td className="text-orange-600">{a.agent}%</td>
-                  <td className="text-orange-600">{a.help}%</td>
-                  <td className="text-orange-600">{a.clarity}%</td>
-                  <td className="text-orange-600">{a.late}%</td>
-                  <td className="text-red-600">{a.voice}%</td>
-
+              {agentRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-6 text-gray-400">
+                    No data
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                agentRows.map((a, i) => (
+                  <tr key={i} className="border-b">
+                    <td className="text-left">{a.name}</td>
+                    <td>{safe(a.greeting)}%</td>
+                    <td>{safe(a.company)}%</td>
+                    <td>{safe(a.agent)}%</td>
+                    <td>{safe(a.help)}%</td>
+                    <td>{safe(a.clarity)}%</td>
+                    <td>{safe(a.late)}%</td>
+                    <td>{safe(a.voice)}%</td>
+                  </tr>
+                ))
+              )}
             </tbody>
 
           </table>
         </div>
-
-      </div>
+      )}
 
     </div>
   );
