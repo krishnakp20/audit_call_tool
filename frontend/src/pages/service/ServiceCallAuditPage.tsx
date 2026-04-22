@@ -28,6 +28,11 @@ type Row = {
   unclear: string;
 };
 
+type ApiResponse = {
+  data: Row[];
+  total: number;
+};
+
 /* ================= HELPERS ================= */
 
 const safe = (v: any) =>
@@ -69,7 +74,7 @@ export default function ServiceCallAuditPage() {
     if (!clientId && clients?.length) {
       setClientId(clients[0].id);
     }
-  }, [clientId, clients]);
+  }, [clientId, clients, setClientId]);
 
   /* ================= DATE LOGIC ================= */
 
@@ -78,8 +83,18 @@ export default function ServiceCallAuditPage() {
     let from = new Date();
     let to = new Date();
 
-    if (dateFilter === "Last 7 Days") from.setDate(today.getDate() - 6);
-    if (dateFilter === "Last 30 Days") from.setDate(today.getDate() - 29);
+    if (dateFilter === "Today") {
+      from = today;
+      to = today;
+    }
+
+    if (dateFilter === "Last 7 Days") {
+      from.setDate(today.getDate() - 6);
+    }
+
+    if (dateFilter === "Last 30 Days") {
+      from.setDate(today.getDate() - 29);
+    }
 
     if (dateFilter !== "Custom Range") {
       const format = (d: Date) => d.toISOString().slice(0, 10);
@@ -95,8 +110,8 @@ export default function ServiceCallAuditPage() {
 
   /* ================= API ================= */
 
-  const { data: apiData, isLoading } = useQuery({
-    queryKey: ["call-audit", clientId, fromDate, toDate, page,limit],
+  const { data: apiData, isLoading } = useQuery<ApiResponse>({
+    queryKey: ["call-audit", clientId, fromDate, toDate, page, limit],
     queryFn: async () => {
       const res = await api.get(
         `/service-dashboard/call-audit-log?client_id=${clientId}&date_from=${fromDate}&date_to=${toDate}&page=${page}&limit=${limit}`
@@ -104,17 +119,16 @@ export default function ServiceCallAuditPage() {
       return res.data;
     },
     enabled: !!clientId,
-    keepPreviousData: true,   // smooth pagination
-    staleTime: 0
+    placeholderData: (prev) => prev // ✅ React Query v5 fix
   });
 
   const DATA: Row[] = apiData?.data || [];
   const total = apiData?.total || 0;
-  const totalPages = Math.ceil(total / limit);
+  const totalPages = Math.max(1, Math.ceil(total / limit));
 
   const agents = [
     "All agents",
-    ...new Set(DATA.map((d) => d.agent))
+    ...Array.from(new Set(DATA.map((d) => d.agent)))
   ];
 
   /* ================= FILTER ================= */
@@ -171,8 +185,18 @@ export default function ServiceCallAuditPage() {
 
         {dateFilter === "Custom Range" && (
           <>
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-9 px-2 border rounded"/>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9 px-2 border rounded"/>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="h-9 px-2 border rounded"
+            />
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="h-9 px-2 border rounded"
+            />
           </>
         )}
       </div>
@@ -211,40 +235,44 @@ export default function ServiceCallAuditPage() {
           <table className="min-w-full text-sm text-center">
 
             <thead className="bg-gray-100">
-              <tr className="text-center">
-                <th className="px-4 py-2 text-center">ID</th>
-                <th className="px-4 py-2 text-center">Agent</th>
-                <th className="px-4 py-2 text-center">Date</th>
-                <th className="px-4 py-2 text-center">Dur</th>
-                <th className="px-4 py-2 text-center">Score</th>
-                <th className="px-4 py-2 text-center">FCR</th>
-                <th className="px-4 py-2 text-center">Opening</th>
-                <th className="px-4 py-2 text-center">Understanding</th>
-                <th className="px-4 py-2 text-center">Resolution</th>
-                <th className="px-4 py-2 text-center">Comms</th>
-                <th className="px-4 py-2 text-center">Control</th>
-                <th className="px-4 py-2 text-center">Closing</th>
-                <th className="px-4 py-2 text-center">Unclear</th>
+              <tr>
+                <th>ID</th>
+                <th>Agent</th>
+                <th>Date</th>
+                <th>Dur</th>
+                <th>Score</th>
+                <th>FCR</th>
+                <th>Opening</th>
+                <th>Understanding</th>
+                <th>Resolution</th>
+                <th>Comms</th>
+                <th>Control</th>
+                <th>Closing</th>
+                <th>Unclear</th>
               </tr>
             </thead>
 
             <tbody>
-              {filtered.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td colSpan={13} className="text-center py-6 text-gray-400">
+                  <td colSpan={13} className="py-6">Loading...</td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={13} className="py-6 text-gray-400">
                     No data found
                   </td>
                 </tr>
               ) : (
                 filtered.map((r, i) => (
                   <tr key={i} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium">{r.id}</td>
-                    <td className="px-4 py-2">{r.agent}</td>
-                    <td className="px-4 py-2">{r.date}</td>
-                    <td className="px-4 py-2">{r.duration}</td>
-                    <td className="px-4 py-2 font-semibold">{safe(r.score)}%</td>
+                    <td>{r.id}</td>
+                    <td>{r.agent}</td>
+                    <td>{r.date}</td>
+                    <td>{r.duration}</td>
+                    <td>{safe(r.score)}%</td>
 
-                    <td className="px-4 py-2">
+                    <td>
                       <span className={`px-2 py-1 text-xs rounded ${
                         r.fcr === "Yes"
                           ? "bg-green-100 text-green-700"
@@ -256,13 +284,13 @@ export default function ServiceCallAuditPage() {
                       </span>
                     </td>
 
-                    <td className="px-4 py-2">{r.opening}</td>
-                    <td className="px-4 py-2">{r.understanding}</td>
-                    <td className="px-4 py-2">{r.resolution}</td>
-                    <td className="px-4 py-2">{r.comms}</td>
-                    <td className="px-4 py-2">{r.control}</td>
-                    <td className="px-4 py-2">{r.closing}</td>
-                    <td className="px-4 py-2">{r.unclear}</td>
+                    <td>{r.opening}</td>
+                    <td>{r.understanding}</td>
+                    <td>{r.resolution}</td>
+                    <td>{r.comms}</td>
+                    <td>{r.control}</td>
+                    <td>{r.closing}</td>
+                    <td>{r.unclear}</td>
                   </tr>
                 ))
               )}
@@ -274,7 +302,7 @@ export default function ServiceCallAuditPage() {
         {/* PAGINATION */}
         <div className="flex justify-between items-center p-4 text-sm">
           <div>
-            Page {page} of {totalPages || 1}
+            Page {page} of {totalPages}
           </div>
 
           <div className="flex gap-2">
