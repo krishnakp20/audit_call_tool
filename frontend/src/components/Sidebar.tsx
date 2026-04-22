@@ -5,6 +5,7 @@ import { LayoutDashboard, Users, ScrollText, FileAudio2, Sliders } from "lucide-
 const items = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/sales", label: "Sales Dashboard", icon: LayoutDashboard },
+  { to: "/service", label: "Service Dashboard", icon: LayoutDashboard },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/prompts", label: "Prompt Builder", icon: ScrollText },
   { to: "/calls", label: "Call Logs", icon: FileAudio2 },

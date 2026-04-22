@@ -17,6 +17,15 @@ import ScorecardsPage from "@/pages/ScorecardsPage";
 import LeadQualityPage from "@/pages/LeadQualityPage";
 import FlagsPage from "@/pages/FlagsPage";
 import CoachingPage from "@/pages/CoachingPage";
+import ServiceOverviewPage from "@/pages/service/ServiceOverviewPage";
+import ServiceScoreTrendsPage from "@/pages/service/ServiceScoreTrendsPage";
+import ServiceCallAuditPage from "@/pages/service/ServiceCallAuditPage";
+import ServiceScorecardPage from "@/pages/service/ServiceScorecardPage";
+import ServiceSubParameterDrillPage from "@/pages/service/ServiceSubParameterDrillPage";
+import ServiceProcessInsightsPage from "@/pages/service/ServiceProcessInsightsPage";
+import ServiceRedFlagsPage from "@/pages/service/ServiceRedFlagsPage";
+import ServiceWeeklyReportPage from "@/pages/service/ServiceWeeklyReportPage";
+import ServiceTrainingPrioritiesPage from "@/pages/service/ServiceTrainingPrioritiesPage";
 
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
@@ -55,6 +64,20 @@ export default function App() {
           <Route path="lead-quality" element={<LeadQualityPage/>} />
           <Route path="flags" element={<FlagsPage/>} />
           <Route path="coaching" element={<CoachingPage/>} />
+        </Route>
+
+        <Route path="service">
+          <Route index element={<ServiceOverviewPage />} />
+
+          <Route path="score-trends" element={<ServiceScoreTrendsPage/>} />
+          <Route path="audit-log" element={<ServiceCallAuditPage/>} />
+          <Route path="scorecards" element={<ServiceScorecardPage/>} />
+          <Route path="drill" element={<ServiceSubParameterDrillPage/>} />
+          <Route path="unclear" element={<div>Unclear Rate</div>} />
+          <Route path="process" element={<ServiceProcessInsightsPage/>} />
+          <Route path="flags" element={<ServiceRedFlagsPage/>} />
+          <Route path="training" element={<ServiceTrainingPrioritiesPage/>} />
+          <Route path="weekly" element={<ServiceWeeklyReportPage/>} />
         </Route>
       </Route>
     </Routes>
