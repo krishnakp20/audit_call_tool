@@ -39,9 +39,11 @@ def _fetch_dialer_payload(client: Client, settings: Setting) -> List[Dict[str, A
     cursor = conn.cursor()
 
     try:
-        campaign_ids = ",".join(
-            [f"'{c.strip()}'" for c in client.campaigns.split(",") if c.strip()]
-        )
+        # campaign_ids = ",".join(
+        #     [f"'{c.strip()}'" for c in client.campaigns.split(",") if c.strip()]
+        # )
+        filters = client.ingroups if client.ingroups else client.campaigns
+        campaign_ids = ",".join([f"'{c.strip()}'" for c in filters.split(",") if c.strip()])
 
         table_name = "vicidial_log" if not client.ingroups else "vicidial_closer_log"
         print(f"📌 Using table: {table_name}")

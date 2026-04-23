@@ -61,14 +61,16 @@ def get_settings(
     # ----------------------------------
     all_users = set()
 
-    for campaign in campaigns:
+    filters = ingroups if ingroups else campaigns
+
+    for f in filters:
         rows = db3.execute(
             text("""
                 SELECT user
                 FROM vicidial_users
-                WHERE closer_campaigns LIKE :campaign
+                WHERE closer_campaigns LIKE :val
             """),
-            {"campaign": f"%{campaign}%"}
+            {"val": f"%{f}%"}
         ).mappings().all()
 
         for r in rows:
