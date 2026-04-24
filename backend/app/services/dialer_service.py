@@ -57,7 +57,7 @@ def _fetch_dialer_payload(client: Client, settings: Setting) -> List[Dict[str, A
                 vc.user,
                 vc.call_date,
                 vc.lead_id,
-                vc.length_in_sec,
+                r.length_in_sec,
                 IFNULL(
                     REPLACE(
                         r.location,
