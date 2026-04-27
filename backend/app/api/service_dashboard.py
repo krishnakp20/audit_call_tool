@@ -126,6 +126,45 @@ def service_overview(
             "status": status
         })
 
+    # ================= NO CLOSING =================
+    no_closing = 0
+
+    for a in audits:
+        if not a.audit_json:
+            continue
+
+        data = a.audit_json
+
+        closure_params = (
+            data.get("sections", {})
+            .get("closure", {})
+            .get("parameters", {})
+        )
+
+        resolution_params = (
+            data.get("sections", {})
+            .get("understanding_resolution", {})
+            .get("parameters", {})
+        )
+
+        conversion_status = data.get("conversion_status") or data.get("sentiment", {}).get("conversion_status")
+
+        missing_closure = (
+                closure_params.get("proper_closure", {}).get("score", 1) == 0
+                or closure_params.get("polite_end", {}).get("score", 1) == 0
+                or closure_params.get("asked_additional_help", {}).get("score", 1) == 0
+                or closure_params.get("customer_satisfaction_check", {}).get("score", 1) == 0
+        )
+
+        incomplete_resolution = (
+                resolution_params.get("completeness_of_resolution", {}).get("score", 1) == 0
+        )
+
+        not_converted = conversion_status != "Conversion"
+
+        if missing_closure or incomplete_resolution or not_converted:
+            no_closing += 1
+
     return {
         "cards": {
             "calls_audited": total_calls,
@@ -135,7 +174,7 @@ def service_overview(
             "unclear_rate": unclear_rate,
             "late_opening": 0,
             "wrong_info": 0,
-            "no_closing": 0
+            "no_closing": no_closing
         },
         "parameter_scores": parameter_scores,
         "agents": agents
