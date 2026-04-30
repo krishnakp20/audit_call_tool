@@ -354,8 +354,8 @@ def agent_scorecard(
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
-        CallAudit.created_at >= date_from,
-        CallAudit.created_at <= date_to
+        func.date(CallAudit.created_at) >= date_from,
+        func.date(CallAudit.created_at) <= date_to
     ).all()
 
     agent_map = {}
@@ -440,8 +440,8 @@ def sub_parameter_drill(
 
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
-        CallAudit.created_at >= date_from,
-        CallAudit.created_at <= date_to
+        func.date(CallAudit.created_at) >= date_from,
+        func.date(CallAudit.created_at) <= date_to
     ).all()
 
     if not audits:
@@ -555,8 +555,8 @@ def process_insights(
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
-        CallAudit.created_at >= date_from,
-        CallAudit.created_at <= date_to
+        func.date(CallAudit.created_at) >= date_from,
+        func.date(CallAudit.created_at) <= date_to
     ).all()
 
     if not audits:
@@ -718,8 +718,8 @@ def red_flags(
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
-        CallAudit.created_at >= date_from,
-        CallAudit.created_at <= date_to
+        func.date(CallAudit.created_at) >= date_from,
+        func.date(CallAudit.created_at) <= date_to
     ).all()
 
     if not audits:
@@ -854,8 +854,8 @@ def training_priorities(
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
-        CallAudit.created_at >= date_from,
-        CallAudit.created_at <= date_to
+        func.date(CallAudit.created_at) >= date_from,
+        func.date(CallAudit.created_at) <= date_to
     ).all()
 
     if not audits:
@@ -955,8 +955,8 @@ def weekly_report(
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
-        CallAudit.created_at >= date_from,
-        CallAudit.created_at <= date_to
+        func.date(CallAudit.created_at) >= date_from,
+        func.date(CallAudit.created_at) <= date_to
     ).all()
 
     if not audits:
