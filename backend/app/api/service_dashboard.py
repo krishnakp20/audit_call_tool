@@ -292,8 +292,8 @@ def call_audit_log(
     # ✅ BASE QUERY
     query = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
-        CallAudit.created_at >= date_from,
-        CallAudit.created_at <= date_to
+        func.date(CallAudit.created_at) >= date_from,
+        func.date(CallAudit.created_at) <= date_to
     )
 
     # ✅ TOTAL COUNT (IMPORTANT)
