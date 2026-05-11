@@ -35,6 +35,7 @@ def quality_summary(
     date_from: date | None = None,
     date_to: date | None = None,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
 
     # 🔹 Total Calls
@@ -103,6 +104,7 @@ def recalculate_summary(
     date_from: date | None = None,
     date_to: date | None = None,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
 
     audits_query = (
@@ -172,6 +174,7 @@ def agent_recalculate_summary(
     date_from: date | None = None,
     date_to: date | None = None,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
 
     records = (
@@ -307,6 +310,7 @@ def conversation_dashboard(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     # -------------------------
     # Base Query
@@ -527,6 +531,7 @@ def call_audit_log(
     page_size: int = Query(10),
 
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     query = (
         db.query(CallAudit, CallLog)
@@ -611,6 +616,7 @@ def parameter_drill(
     date_from: date | None = None,
     date_to: date | None = None,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     query = (
         db.query(CallAudit, CallLog)
@@ -725,6 +731,7 @@ def agent_scorecards(
     date_from: date | None = None,
     date_to: date | None = None,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     query = (
         db.query(CallAudit, CallLog)
@@ -861,6 +868,7 @@ def lead_quality(
     date_from: date | None = None,
     date_to: date | None = None,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     import json
 
@@ -983,6 +991,7 @@ def critical_flags(
     date_from: date | None = None,
     date_to: date | None = None,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     query = (
         db.query(CallAudit, CallLog)
@@ -1118,6 +1127,7 @@ def coaching_needs(
     date_from: date | None = None,
     date_to: date | None = None,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     query = (
         db.query(CallAudit, CallLog)

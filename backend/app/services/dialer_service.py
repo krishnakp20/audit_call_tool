@@ -51,6 +51,15 @@ def _fetch_dialer_payload(client: Client, settings: Setting) -> List[Dict[str, A
 
         connection_uri_underscore = client.dialer_ip.replace(".", "_")
 
+        join_clause = ""
+
+        if table_name == "vicidial_log":
+            join_clause = """
+                INNER JOIN manual_call_log mcl
+                    ON vc.uniqueid = mcl.uniqueid
+                   AND vc.phone_number = mcl.phone_number
+            """
+
         sql = f"""
             SELECT
                 vc.campaign_id,
@@ -71,6 +80,7 @@ def _fetch_dialer_payload(client: Client, settings: Setting) -> List[Dict[str, A
                     ''
                 ) AS file_url
             FROM {table_name} vc
+            {join_clause}
             LEFT JOIN recording_log r
                 ON vc.lead_id = r.lead_id
                AND DATE(vc.call_date) = DATE(r.start_time)

@@ -147,7 +147,8 @@ def score_trends(
     client_id: int = Query(...),
     date_from: date = Query(...),
     date_to: date = Query(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     # ================= FETCH =================
     audits = (
@@ -247,7 +248,8 @@ def call_audit_log(
     date_to: date,
     page: int = Query(1, ge=1),
     limit: int = Query(15, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
 
     # ✅ BASE QUERY
@@ -311,7 +313,8 @@ def agent_scorecard(
     client_id: int,
     date_from: date,
     date_to: date,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
@@ -396,7 +399,8 @@ def sub_parameter_drill(
     date_from: date,
     date_to: date,
     agent: str | None = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
 
     audits = db.query(CallAudit).filter(
@@ -512,7 +516,8 @@ def process_insights(
     client_id: int,
     date_from: date,
     date_to: date,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
@@ -675,7 +680,8 @@ def red_flags(
     client_id: int,
     date_from: date,
     date_to: date,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
@@ -811,7 +817,8 @@ def training_priorities(
     client_id: int,
     date_from: date,
     date_to: date,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
@@ -912,7 +919,8 @@ def weekly_report(
     client_id: int,
     date_from: date,
     date_to: date,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     audits = db.query(CallAudit).filter(
         CallAudit.client_id == client_id,
