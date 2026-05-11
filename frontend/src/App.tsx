@@ -73,7 +73,6 @@ export default function App() {
           <Route path="audit-log" element={<ServiceCallAuditPage/>} />
           <Route path="scorecards" element={<ServiceScorecardPage/>} />
           <Route path="drill" element={<ServiceSubParameterDrillPage/>} />
-          <Route path="unclear" element={<div>Unclear Rate</div>} />
           <Route path="process" element={<ServiceProcessInsightsPage/>} />
           <Route path="flags" element={<ServiceRedFlagsPage/>} />
           <Route path="training" element={<ServiceTrainingPrioritiesPage/>} />

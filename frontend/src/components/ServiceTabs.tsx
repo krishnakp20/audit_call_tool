@@ -6,7 +6,6 @@ export const SERVICE_TABS = [
   { key: "audit-log", label: "Call audit log", path: "/service/audit-log" },
   { key: "scorecards", label: "Agent scorecards", path: "/service/scorecards" },
   { key: "drill", label: "Sub-parameter drill", path: "/service/drill" },
-  { key: "unclear", label: "Unclear rate", path: "/service/unclear" },
   { key: "process", label: "Process insights", path: "/service/process" },
   { key: "flags", label: "Red flags", path: "/service/flags" },
   { key: "training", label: "Training needs", path: "/service/training" },
