@@ -5,6 +5,20 @@ import httpx
 from app.core.config import get_settings
 
 
+VOICEMAIL_KEYWORDS = [
+    "voice mail",
+]
+
+def is_voicemail(transcript: str) -> bool:
+    transcript = transcript.lower()
+
+    return any(
+        keyword in transcript
+        for keyword in VOICEMAIL_KEYWORDS
+    )
+
+
+
 def _extract_deepgram_transcript(payload: dict[str, Any]) -> str:
     results = payload.get("results", {})
     channels = results.get("channels", [])
@@ -50,6 +64,15 @@ async def transcribe_audio(recording_path: str) -> str:
     transcript = await transcribe_audio_bytes(audio_bytes=audio_bytes, filename=recording_path, content_type="application/octet-stream")
     if not transcript:
         raise RuntimeError("Deepgram response did not include transcript")
+    
+    # Voicemail detection
+    voice_mail = is_voicemail(transcript)
+
+    return {
+        "transcript": transcript,
+        "voice_mail": voice_mail,
+    }
+
     return transcript
 
 

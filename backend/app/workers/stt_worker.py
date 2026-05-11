@@ -19,15 +19,23 @@ def run_once(limit: int = 20) -> int:
                 if not call.recording_path:
                     raise RuntimeError("Recording path missing")
 
-                transcript = asyncio.run(transcribe_audio(call.recording_path))
+                result = asyncio.run(transcribe_audio(call.recording_path))
+
+                transcript = result["transcript"]
+                voice_mail = result["voice_mail"]
 
                 # ✅ handle empty transcript ALSO
                 if not transcript.strip():
                     raise RuntimeError("Empty transcript returned")
                 call.transcript = transcript
+
+                # Save voicemail flag
+                call.voice_mail = voice_mail
+
             except Exception as exc:
                 print(f"[stt_worker] failed call_id={call.call_id}: {exc}")
                 call.transcript = "[TRANSCRIPT_FAILED]"
+                call.voice_mail = False
 
             processed += 1
         db.commit()

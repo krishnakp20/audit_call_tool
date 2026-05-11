@@ -36,7 +36,12 @@ def run_once(limit: int = 20) -> int:
                 continue
 
             try:
-                audit_json = asyncio.run(run_ai_audit(prompt.prompt, call.transcript or ""))
+                audit_json = asyncio.run(run_ai_audit(prompt.prompt, call.transcript or "", call.voice_mail))
+
+                # Skip voicemail audits
+                if not audit_json:
+                    continue
+                
             except Exception as exc:
                 print(f"[audit_worker] failed call_id={call.call_id}: {exc}")
                 continue

@@ -72,7 +72,12 @@ def _normalize_audit_json(audit_json: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
-async def run_ai_audit(prompt: str, transcript: str) -> dict[str, Any]:
+async def run_ai_audit(prompt: str, transcript: str, voice_mail: bool = False) -> dict[str, Any]:
+    
+    # Skip voicemail calls completely
+    if voice_mail:
+        return {}
+
     settings = get_settings()
     llm_url = (settings.llm_api_url or "").strip()
     openai_key = (settings.openai_api_key or "").strip()

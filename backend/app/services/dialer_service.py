@@ -57,7 +57,6 @@ def _fetch_dialer_payload(client: Client, settings: Setting) -> List[Dict[str, A
             join_clause = """
                 INNER JOIN manual_call_log mcl
                     ON vc.uniqueid = mcl.uniqueid
-                   AND vc.phone_number = mcl.phone_number
             """
 
         sql = f"""
