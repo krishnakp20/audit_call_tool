@@ -7,13 +7,17 @@ from app.core.config import get_settings
 
 VOICEMAIL_KEYWORDS = [
     "voice mail",
+    "voicemail",
 ]
 
 def is_voicemail(transcript: str) -> bool:
-    transcript = transcript.lower()
+    transcript = transcript.lower().strip()
+
+    # Normalize spaces
+    transcript = " ".join(transcript.split())
 
     return any(
-        keyword in transcript
+        keyword.lower() in transcript
         for keyword in VOICEMAIL_KEYWORDS
     )
 
@@ -45,7 +49,7 @@ def _deepgram_params() -> dict[str, str]:
     return params
 
 
-async def transcribe_audio(recording_path: str) -> str:
+async def transcribe_audio(recording_path: str) -> dict[str, Any]:
     settings = get_settings()
     if settings.stt_mock_enabled:
         return f"[MOCK TRANSCRIPT] {recording_path}"
@@ -73,7 +77,7 @@ async def transcribe_audio(recording_path: str) -> str:
         "voice_mail": voice_mail,
     }
 
-    return transcript
+    # return transcript
 
 
 async def transcribe_audio_bytes(audio_bytes: bytes, filename: str = "recording.wav", content_type: str = "audio/wav") -> str:
