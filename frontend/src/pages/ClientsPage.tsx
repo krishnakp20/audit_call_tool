@@ -269,7 +269,7 @@ export default function ClientsPage() {
                   placeholder={
                   key === "dialer_ip"
                     ? "DB IP"
-                    : key.replaceAll("_", " ")
+                    : key.replace(/_/g, " ")
                 }
                   value={
                     form[key as keyof typeof form]
