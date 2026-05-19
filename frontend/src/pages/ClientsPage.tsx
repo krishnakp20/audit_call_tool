@@ -142,7 +142,7 @@ export default function ClientsPage() {
       <DataTable
         headers={[
           "Name",
-          "Dialer IP",
+          "DB IP",
           "Campaigns",
           "Ingroups",
           "Status",
@@ -266,7 +266,11 @@ export default function ClientsPage() {
                 <input
                   key={key}
                   className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                  placeholder={key.replaceAll("_", " ")}
+                  placeholder={
+                  key === "dialer_ip"
+                    ? "DB IP"
+                    : key.replaceAll("_", " ")
+                }
                   value={
                     form[key as keyof typeof form]
                   }
@@ -356,7 +360,7 @@ export default function ClientsPage() {
 
         <div>
           <p className="font-semibold text-slate-600">
-            Dialer IP
+            DB IP
           </p>
           <p>{viewClient.dialer_ip}</p>
         </div>
