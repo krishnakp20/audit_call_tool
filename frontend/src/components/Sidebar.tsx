@@ -1,15 +1,62 @@
 import { Link, useLocation } from "react-router-dom";
 import { useUIStore } from "@/store/uiStore";
 import { LayoutDashboard, Users, ScrollText, FileAudio2, Sliders } from "lucide-react";
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 
 const items = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/sales", label: "Sales Dashboard", icon: LayoutDashboard },
-  { to: "/service", label: "Service Dashboard", icon: LayoutDashboard },
-  { to: "/clients", label: "Clients", icon: Users },
-  { to: "/prompts", label: "Prompt Builder", icon: ScrollText },
-  { to: "/calls", label: "Call Logs", icon: FileAudio2 },
-  { to: "/settings", label: "Settings", icon: Sliders }
+
+  {
+    to: "/",
+    label: "Dashboard",
+    icon: LayoutDashboard
+  },
+
+  ...(department === "sales"
+    ? [
+        {
+          to: "/sales",
+          label: "Sales Dashboard",
+          icon: LayoutDashboard
+        }
+      ]
+    : []),
+
+  ...(department === "service"
+    ? [
+        {
+          to: "/service",
+          label: "Service Dashboard",
+          icon: LayoutDashboard
+        }
+      ]
+    : []),
+
+  {
+    to: "/clients",
+    label: "Clients",
+    icon: Users
+  },
+
+  {
+    to: "/prompts",
+    label: "Prompt Builder",
+    icon: ScrollText
+  },
+
+  {
+    to: "/calls",
+    label: "Call Logs",
+    icon: FileAudio2
+  },
+
+  {
+    to: "/settings",
+    label: "Settings",
+    icon: Sliders
+  }
+
 ];
 
 export function Sidebar() {

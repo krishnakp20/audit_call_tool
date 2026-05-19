@@ -340,26 +340,51 @@ console.log(filteredAgents,"filteredAgents==")
 
 
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = ({
+  active,
+  payload,
+  label
+}: any) => {
 
-    const data = payload[0].payload;
+  if (
+    !active ||
+    !payload ||
+    !payload.length
+  ) {
+    return null;
+  }
 
-    return (
-        <div className="bg-white shadow-md rounded-lg px-4 py-2 border border-gray-200">
-        <p className="text-sm font-semibold text-gray-900 mb-1">
-            {label}
+  const data =
+    payload[0].payload;
+
+  return (
+    <div className="bg-white shadow-lg rounded-xl px-4 py-3 border border-gray-200">
+
+      <p className="text-sm font-semibold text-gray-900 mb-2">
+        {label}
+      </p>
+
+      <div className="space-y-1 text-sm">
+
+        <p className="text-gray-600">
+          Score:
+          <span className="font-semibold text-blue-600 ml-1">
+            {data.score} / {data.total}
+          </span>
         </p>
-        <p className="text-sm text-gray-600">
-            Score:{" "}
-            <span className="font-semibold text-blue-600">
-            {data.score}
-            </span>{" "}
-            / {data.total}
+
+        <p className="text-gray-600">
+          Percentage:
+          <span className="font-semibold text-green-600 ml-1">
+            {data.percent}%
+          </span>
         </p>
-        </div>
-    );
-  };
+
+      </div>
+
+    </div>
+  );
+};
 
   const target = 35;
   const isBelowTarget = stats.conversionRate < target;
@@ -559,78 +584,177 @@ console.log(filteredAgents,"filteredAgents==")
       </div>
 
       {/* 🔹 Chart */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">
-            Call Quality Parameter Scoring
-        </h2>
+<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+  <h2 className="text-xl font-semibold text-gray-900 mb-6">
+    Call Quality Parameter Scoring
+  </h2>
 
-        <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={chartDataWithPercent} margin={{ top: 20, right: 20, left: 20, bottom: 80 }}>
+  <ResponsiveContainer width="100%" height={520}>
+    <BarChart
+      data={chartDataWithPercent}
+      margin={{
+        top: 30,
+        right: 20,
+        left: 20,
+        bottom: 140
+      }}
+    >
+      {/* Grid */}
+      <CartesianGrid
+        strokeDasharray="3 3"
+        stroke="#e5e7eb"
+      />
 
-            {/* Grid */}
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+      {/* X Axis */}
+      <XAxis
+        dataKey="name"
+        interval={0}
+        tickLine={false}
+        axisLine={{ stroke: "#d1d5db" }}
+        tick={({ x, y, payload }) => {
 
-            {/* X Axis */}
-            <XAxis
-                dataKey="name"
-                angle={-45}
-                textAnchor="end"
-                interval={0}
-                tick={{ fill: "#6b7280", fontSize: 12 }}
+          const item =
+            chartDataWithPercent.find(
+              (d) => d.name === payload.value
+            );
+
+          return (
+            <g transform={`translate(${x},${y})`}>
+
+              {/* Parameter Name */}
+              <text
+                x={10}
+                y={10}
+                dy={15}
+                textAnchor="middle"
+                fill="#374151"
+                fontSize={11}
+                fontWeight={500}
+              >
+                {payload.value
+                  .split(" ")
+                  .map(
+                    (
+                      word: string,
+                      index: number
+                    ) => (
+                      <tspan
+                        key={index}
+                        x="0"
+                        dy={
+                          index === 0
+                            ? 0
+                            : 14
+                        }
+                      >
+                        {word}
+                      </tspan>
+                    )
+                  )}
+              </text>
+
+              {/* Score */}
+              <text
+                x={0}
+                y={65}
+                textAnchor="middle"
+                fill="#6b7280"
+                fontSize={11}
+                fontWeight="600"
+              >
+                ({item?.score}/{item?.total})
+              </text>
+
+            </g>
+          );
+        }}
+      />
+
+      {/* Y Axis */}
+      <YAxis
+        domain={[0, 100]}
+        tick={{
+          fill: "#6b7280",
+          fontSize: 12
+        }}
+        label={{
+          value: "Percentage",
+          angle: -90,
+          position: "insideLeft",
+          style: {
+            fill: "#6b7280"
+          }
+        }}
+      />
+
+      {/* Tooltip */}
+      <Tooltip
+        content={<CustomTooltip />}
+        cursor={{
+          fill: "rgba(0,0,0,0.05)"
+        }}
+      />
+
+      {/* Bars */}
+      <Bar
+        dataKey="percent"
+        radius={[8, 8, 0, 0]}
+        label={{
+          position: "top",
+          fill: "#111827",
+          fontSize: 12,
+          fontWeight: "bold",
+          formatter: (
+            value: number
+          ) => `${value}%`
+        }}
+      >
+        {chartDataWithPercent.map(
+          (entry, index) => (
+            <Cell
+              key={`cell-${index}`}
+              fill={entry.fillColor}
             />
+          )
+        )}
+      </Bar>
 
-            {/* Y Axis */}
-            <YAxis
-                tick={{ fill: "#6b7280", fontSize: 12 }}
-                label={{
-                value: "Score",
-                angle: -90,
-                position: "insideLeft",
-                style: { fill: "#6b7280" }
-                }}
-            />
+    </BarChart>
+  </ResponsiveContainer>
 
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.05)" }} />
+  {/* 🔹 Legend */}
+  <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-600 justify-center">
 
-            {/* Bars */}
-            <Bar
-                dataKey="score"
-                radius={[8, 8, 0, 0]}
-                label={{
-                    position: "top",
-                    fill: "#374151",
-                    fontSize: 12,
-                    fontWeight: "bold",
-                    formatter: (value: number) => value // or `${value}`
-                }}
-                >
-                {chartDataWithPercent.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fillColor} />
-                ))}
-            </Bar>
-            </BarChart>
-        </ResponsiveContainer>
+    <div className="flex items-center gap-2">
+      <div className="w-3 h-3 rounded bg-green-500"></div>
+      <span>
+        Excellent (80%+)
+      </span>
+    </div>
 
-        {/* 🔹 Legend */}
-        <div className="mt-4 flex gap-4 text-xs text-gray-600 justify-center">
-            <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-green-500"></div>
-            <span>Excellent (80%+)</span>
-            </div>
-            <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-blue-500"></div>
-            <span>Good (60-79%)</span>
-            </div>
-            <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-amber-500"></div>
-            <span>Fair (40-59%)</span>
-            </div>
-            <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-red-500"></div>
-            <span>Needs Work (&lt;40%)</span>
-            </div>
-        </div>
-      </div>
+    <div className="flex items-center gap-2">
+      <div className="w-3 h-3 rounded bg-blue-500"></div>
+      <span>
+        Good (60-79%)
+      </span>
+    </div>
+
+    <div className="flex items-center gap-2">
+      <div className="w-3 h-3 rounded bg-amber-500"></div>
+      <span>
+        Fair (40-59%)
+      </span>
+    </div>
+
+    <div className="flex items-center gap-2">
+      <div className="w-3 h-3 rounded bg-red-500"></div>
+      <span>
+        Needs Work (&lt;40%)
+      </span>
+    </div>
+
+  </div>
+</div>
 
 
       {/* 🔹 Agent Performance Table */}
@@ -749,8 +873,19 @@ console.log(filteredAgents,"filteredAgents==")
                                 key={i}
                                 className="bg-white rounded-lg p-3 border border-gray-200"
                             >
-                                <p className="text-xs text-gray-600 mb-1">
-                                {item.label}
+                                <p className="text-xs text-gray-600 mb-1 leading-5">
+                                  {item.label}
+
+                                  <span className="ml-1 font-semibold text-indigo-600">
+                                    (
+                                    {item.total > 0
+                                      ? (
+                                          (item.value / item.total) *
+                                          100
+                                        ).toFixed(2)
+                                      : 0}
+                                    %)
+                                  </span>
                                 </p>
                                 <p className={`text-lg font-bold ${item.color}`}>
                                 {item.value}

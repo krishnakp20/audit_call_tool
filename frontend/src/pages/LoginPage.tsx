@@ -4,6 +4,7 @@ import { api } from "@/services/api";
 import { authStorage } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import { departmentStorage } from "@/services/department";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -17,8 +18,10 @@ export default function LoginPage() {
     try {
       const { data } = await api.post("/auth/login", { email, password });
       authStorage.setToken(data.access_token);
+      departmentStorage.clear();
+
       toast.success("Login successful");
-      navigate("/");
+      window.location.href = "/";
     } catch {
       toast.error("Invalid login");
     } finally {

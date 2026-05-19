@@ -26,7 +26,9 @@ import ServiceProcessInsightsPage from "@/pages/service/ServiceProcessInsightsPa
 import ServiceRedFlagsPage from "@/pages/service/ServiceRedFlagsPage";
 import ServiceWeeklyReportPage from "@/pages/service/ServiceWeeklyReportPage";
 import ServiceTrainingPrioritiesPage from "@/pages/service/ServiceTrainingPrioritiesPage";
+import DepartmentModal from "@/components/DepartmentModal";
 
+import { departmentStorage } from "@/services/department";
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
   if (!authStorage.getToken()) {
@@ -36,6 +38,20 @@ function ProtectedRoute({ children }: { children: ReactElement }) {
 }
 
 export default function App() {
+    const department =
+  departmentStorage.get();
+
+  if (
+  authStorage.getToken() &&
+  !department
+) {
+  return (
+    <DepartmentModal
+      open={true}
+    />
+  );
+}
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
