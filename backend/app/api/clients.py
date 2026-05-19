@@ -68,3 +68,59 @@ def toggle_client_status(
         "message": "Client status updated",
         "is_active": client.is_active
     }
+
+@router.put("/{client_id}", response_model=ClientOut)
+def update_client(
+    client_id: int,
+    payload: ClientUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+
+    client = (
+        db.query(Client)
+        .filter(Client.id == client_id)
+        .first()
+    )
+
+    if not client:
+        raise HTTPException(
+            status_code=404,
+            detail="Client not found"
+        )
+
+    for key, value in payload.model_dump(
+        exclude_none=True
+    ).items():
+        setattr(client, key, value)
+
+    db.commit()
+    db.refresh(client)
+
+    return client
+
+@router.delete("/{client_id}")
+def delete_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+
+    client = (
+        db.query(Client)
+        .filter(Client.id == client_id)
+        .first()
+    )
+
+    if not client:
+        raise HTTPException(
+            status_code=404,
+            detail="Client not found"
+        )
+
+    db.delete(client)
+    db.commit()
+
+    return {
+        "message": "Client deleted successfully"
+    }

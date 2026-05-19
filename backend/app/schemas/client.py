@@ -38,9 +38,11 @@ class ClientOut(BaseModel):
 
     dialer_ip: str
     dialer_user: str
+    dialer_pass: str
 
     db_host: str
     db_user: str
+    db_pass: str
 
     campaigns: str
     ingroups: str
