@@ -7,6 +7,11 @@ import { departmentStorage } from "@/services/department";
 const department =
   departmentStorage.get();
 
+type Client = {
+  id: number;
+  name: string;
+};
+
 export default function ConversationPage() {
   const clientId = useUIStore((s) => s.selectedClientId);
   const setClientId = useUIStore((s) => s.setClientId);
@@ -122,7 +127,7 @@ export default function ConversationPage() {
     value={clientId ?? ""}
     onChange={(e) => setClientId(Number(e.target.value))}
   >
-    {clientsQuery.data?.map((c: any) => (
+    {clientsQuery.data?.map((c: Client) => (
       <option key={c.id} value={c.id}>
         {c.name}
       </option>
