@@ -9,6 +9,9 @@ import { Skeleton } from "@/components/Skeleton";
 import toast from "react-hot-toast";
 import { useAgentPerformance, useDashboardSummary } from "@/hooks/useDashboardData";
 import { Client } from "@/types";
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 
 export default function DashboardPage() {
   const clientId = useUIStore((s) => s.selectedClientId);
@@ -17,10 +20,16 @@ export default function DashboardPage() {
   const [fromDate, setFromDate] = useState(today.toISOString().slice(0, 10));
   const [toDate, setToDate] = useState(today.toISOString().slice(0, 10));
 
-  const clientsQuery = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () => (await api.get<Client[]>("/clients")).data
-  });
+const clientsQuery = useQuery<Client[]>({
+   queryKey: ["clients", department],
+
+      queryFn: async () =>
+        (
+          await api.get<Client[]>(
+            `/clients?department=${department}`
+          )
+        ).data
+    });
 
   useEffect(() => {
     if (!clientId && clientsQuery.data?.length) {

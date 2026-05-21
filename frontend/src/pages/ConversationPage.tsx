@@ -3,6 +3,9 @@ import DashboardTabs from "@/components/DashboardTabs";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 
 export default function ConversationPage() {
   const clientId = useUIStore((s) => s.selectedClientId);
@@ -20,9 +23,15 @@ export default function ConversationPage() {
 
   // ✅ Clients API
   const clientsQuery = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () => (await api.get("/clients")).data
-  });
+    queryKey: ["clients", department],
+
+      queryFn: async () =>
+        (
+          await api.get<Client[]>(
+            `/clients?department=${department}`
+          )
+        ).data
+    });
 
   // ✅ Default client
   useEffect(() => {

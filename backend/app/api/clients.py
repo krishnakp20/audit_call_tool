@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -6,6 +8,7 @@ from app.db.session import get_db
 from app.models.client import Client
 from app.models.user import User
 from app.schemas.client import ClientCreate, ClientOut, ClientUpdate
+from sqlalchemy import or_
 
 router = APIRouter(prefix="/clients", tags=["Clients"])
 
@@ -22,13 +25,34 @@ def create_client(
     db.refresh(client)
     return client
 
-
 @router.get("", response_model=list[ClientOut])
 def list_clients(
+    department: Optional[str] = None,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ) -> list[ClientOut]:
-    return db.query(Client).order_by(Client.created_at.desc()).all()
+
+    query = db.query(Client)
+
+    # SALES
+    if department == "sales":
+        query = query.filter(
+            or_(
+                Client.ingroups == None,
+                Client.ingroups == ""
+            )
+        )
+
+    # SERVICE
+    elif department == "service":
+        query = query.filter(
+            Client.ingroups != None,
+            Client.ingroups != ""
+        )
+
+    return query.order_by(
+        Client.created_at.desc()
+    ).all()
 
 
 @router.put("/{client_id}", response_model=ClientOut)

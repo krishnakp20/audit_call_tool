@@ -3,7 +3,9 @@ import DashboardTabs from "@/components/DashboardTabs";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
-
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 /* ================= TYPES ================= */
 
 type Client = {
@@ -52,10 +54,16 @@ export default function LeadQualityPage() {
 
   /* ================= CLIENTS ================= */
 
-  const clientsQuery = useQuery<Client[]>({
-    queryKey: ["clients"],
-    queryFn: async () => (await api.get("/clients")).data
-  });
+ const clientsQuery = useQuery<Client[]>({
+   queryKey: ["clients", department],
+
+      queryFn: async () =>
+        (
+          await api.get<Client[]>(
+            `/clients?department=${department}`
+          )
+        ).data
+    });
 
   useEffect(() => {
     if (!clientId && clientsQuery.data?.length) {

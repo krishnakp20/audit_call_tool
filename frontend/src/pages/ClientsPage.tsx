@@ -4,6 +4,9 @@ import toast from "react-hot-toast";
 import { DataTable } from "@/components/DataTable";
 import { api } from "@/services/api";
 import { Client } from "@/types";
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 
 const emptyClient = {
   name: "",
@@ -31,11 +34,16 @@ export default function ClientsPage() {
   // =========================
   // GET CLIENTS
   // =========================
-  const clients = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () =>
-      (await api.get<Client[]>("/clients")).data
-  });
+const clients = useQuery({
+  queryKey: ["clients", department],
+
+  queryFn: async () =>
+    (
+      await api.get<Client[]>(
+        `/clients?department=${department}`
+      )
+    ).data
+});
 
   // =========================
   // CREATE CLIENT

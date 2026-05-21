@@ -6,6 +6,9 @@ import { useUIStore } from "@/store/uiStore";
 import { DataTable } from "@/components/DataTable";
 import { Audit, CallLog, Client } from "@/types";
 import toast from "react-hot-toast";
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 
 export default function CallLogsPage() {
   const clientId = useUIStore((s) => s.selectedClientId);
@@ -23,10 +26,15 @@ export default function CallLogsPage() {
 
   // ✅ Clients
   const clientsQuery = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () =>
-      (await api.get<Client[]>("/clients")).data
-  });
+    queryKey: ["clients", department],
+
+      queryFn: async () =>
+        (
+          await api.get<Client[]>(
+            `/clients?department=${department}`
+          )
+        ).data
+    });
 
   // ✅ Auto select first client
   useEffect(() => {

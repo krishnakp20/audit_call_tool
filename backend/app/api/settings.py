@@ -84,7 +84,24 @@ def get_settings(
     # ----------------------------------
     agents_list = []
 
-    if all_users:
+    if not ingroups:
+        rows = db2.execute(
+            text("""
+                SELECT username, displayname
+                FROM agent_master
+                WHERE status = 'A'
+            """)
+        ).mappings().all()
+
+        agents_list = [
+            {
+                "username": r["username"],
+                "displayname": r["displayname"]
+            }
+            for r in rows
+        ]
+
+    elif all_users:
         # 🔥 FIX: dynamic IN clause
         query = text(f"""
             SELECT username, displayname

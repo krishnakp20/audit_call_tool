@@ -7,11 +7,11 @@ const department =
 
 const items = [
 
-  {
-    to: "/",
-    label: "Dashboard",
-    icon: LayoutDashboard
-  },
+//   {
+//     to: "/",
+//     label: "Dashboard",
+//     icon: LayoutDashboard
+//   },
 
   ...(department === "sales"
     ? [

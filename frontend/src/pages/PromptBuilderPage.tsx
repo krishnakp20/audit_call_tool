@@ -7,6 +7,9 @@ import { api } from "@/services/api";
 import { JSONViewer } from "@/components/JSONViewer";
 import { useUIStore } from "@/store/uiStore";
 import { Client } from "@/types";
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 
 interface PromptItem {
   id: number;
@@ -26,9 +29,15 @@ export default function PromptBuilderPage() {
   const setClientId = useUIStore((s) => s.setClientId);
 
   const clientsQuery = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () => (await api.get<Client[]>("/clients")).data
-  });
+    queryKey: ["clients", department],
+
+      queryFn: async () =>
+        (
+          await api.get<Client[]>(
+            `/clients?department=${department}`
+          )
+        ).data
+    });
 
   useEffect(() => {
     if (!clientId && clientsQuery.data?.length) {

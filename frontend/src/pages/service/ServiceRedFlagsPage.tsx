@@ -3,7 +3,9 @@ import ServiceTabs from "@/components/ServiceTabs";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
-
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 /* ================= TYPES ================= */
 
 type Client = {
@@ -55,10 +57,16 @@ export default function RedFlagsPage() {
 
   /* ================= CLIENT ================= */
 
-  const { data: clients } = useQuery<Client[]>({
-    queryKey: ["clients"],
-    queryFn: async () => (await api.get("/clients")).data
-  });
+const { data: clients } = useQuery({
+  queryKey: ["clients", department],
+
+  queryFn: async () =>
+    (
+      await api.get<Client[]>(
+        `/clients?department=${department}`
+      )
+    ).data
+});
 
   useEffect(() => {
     if (!clientId && clients?.length) {

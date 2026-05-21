@@ -4,6 +4,9 @@ import toast from "react-hot-toast";
 import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
 import { Client } from "@/types";
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 
 interface SettingsPayload {
   client_id: number;
@@ -40,9 +43,15 @@ export default function SettingsPage() {
 
   // ✅ Fetch clients
   const clientsQuery = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () => (await api.get<Client[]>("/clients")).data
-  });
+    queryKey: ["clients", department],
+
+      queryFn: async () =>
+        (
+          await api.get<Client[]>(
+            `/clients?department=${department}`
+          )
+        ).data
+    });
 
   // ✅ Auto select first client
   useEffect(() => {

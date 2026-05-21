@@ -3,6 +3,9 @@ import ServiceTabs from "@/components/ServiceTabs";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useUIStore } from "@/store/uiStore";
+import { departmentStorage } from "@/services/department";
+
+const department = departmentStorage.get();
 
 /* ================= TYPES ================= */
 
@@ -54,28 +57,47 @@ export default function SubParameterDrillPage() {
   const today = useMemo(() => new Date(), []);
 
   const [dateFilter, setDateFilter] = useState("Today");
-  const [fromDate, setFromDate] = useState(today.toISOString().slice(0, 10));
-  const [toDate, setToDate] = useState(today.toISOString().slice(0, 10));
-  const [selectedAgent, setSelectedAgent] = useState("");
+
+  const [fromDate, setFromDate] = useState(
+    today.toISOString().slice(0, 10)
+  );
+
+  const [toDate, setToDate] = useState(
+    today.toISOString().slice(0, 10)
+  );
+
+  /* ✅ IMPORTANT */
+  const [selectedAgent, setSelectedAgent] = useState("All Agents");
 
   /* ================= CLIENT ================= */
 
-  const { data: clients, isLoading: clientLoading } = useQuery<Client[]>({
-    queryKey: ["clients"],
-    queryFn: async () => (await api.get("/clients")).data
+  const {
+    data: clients = [],
+    isLoading: clientLoading
+  } = useQuery<Client[]>({
+    queryKey: ["clients", department],
+
+    queryFn: async () =>
+      (
+        await api.get<Client[]>(
+          `/clients?department=${department}`
+        )
+      ).data
   });
 
-  /* ✅ AUTO SELECT CLIENT */
+  /* ================= AUTO CLIENT ================= */
+
   useEffect(() => {
-    if (!clientId && clients?.length) {
+    if (!clientId && clients.length) {
       setClientId(clients[0].id);
     }
-  }, [clients, clientId]);
+  }, [clients, clientId, setClientId]);
 
   /* ================= DATE FIX ================= */
 
   useEffect(() => {
     const today = new Date();
+
     let from = new Date();
     let to = new Date();
 
@@ -92,9 +114,10 @@ export default function SubParameterDrillPage() {
       from.setDate(today.getDate() - 29);
     }
 
-    // ✅ IMPORTANT: don't override custom range
     if (dateFilter !== "Custom Range") {
-      const format = (d: Date) => d.toISOString().slice(0, 10);
+      const format = (d: Date) =>
+        d.toISOString().slice(0, 10);
+
       setFromDate(format(from));
       setToDate(format(to));
     }
@@ -103,57 +126,120 @@ export default function SubParameterDrillPage() {
   /* ================= API ================= */
 
   const { data, isLoading } = useQuery<ApiResponse>({
-    queryKey: ["sub-param", clientId, fromDate, toDate, selectedAgent],
+    queryKey: [
+      "sub-param",
+      clientId,
+      fromDate,
+      toDate
+    ],
+
     queryFn: async () => {
       const res = await api.get(
-        `/service-dashboard/sub-parameter-drill?client_id=${clientId}&date_from=${fromDate}&date_to=${toDate}&agent=${selectedAgent}`
+        `/service-dashboard/sub-parameter-drill?client_id=${clientId}&date_from=${fromDate}&date_to=${toDate}`
       );
+
       return res.data;
     },
+
     enabled: !!clientId
   });
 
-  /* ✅ AUTO SELECT AGENT */
-  useEffect(() => {
-    if (data?.agent_list?.length && !selectedAgent) {
-      setSelectedAgent(data.agent_list[0]);
-    }
-  }, [data, selectedAgent]);
+  /* ================= DATA ================= */
 
-  const subParams = data?.sub_params || [];
-  const agentRows = data?.agents || [];
   const agents = data?.agent_list || [];
+
+  /* ✅ SHOW ALL AGENTS BY DEFAULT */
+  const agentRows =
+    selectedAgent === "All Agents"
+      ? data?.agents || []
+      : (data?.agents || []).filter(
+          (a) => a.name === selectedAgent
+        );
+
+  /* ✅ SUB PARAM ALSO CHANGE */
+  const subParams =
+    selectedAgent === "All Agents"
+      ? data?.sub_params || []
+      : (() => {
+          const found = (data?.agents || []).find(
+            (a) => a.name === selectedAgent
+          );
+
+          if (!found) return [];
+
+          return [
+            {
+              label: "Greeting presence",
+              value: found.greeting
+            },
+            {
+              label: "Company identification",
+              value: found.company
+            },
+            {
+              label: "Agent identification",
+              value: found.agent
+            },
+            {
+              label: "Offer of help",
+              value: found.help
+            },
+            {
+              label: "Opening clarity and flow",
+              value: found.clarity
+            },
+            {
+              label: "Late opening",
+              value: found.late
+            },
+            {
+              label: "Voice energy",
+              value: found.voice
+            }
+          ];
+        })();
 
   /* ================= UI ================= */
 
   return (
     <div className="space-y-5">
-
       <ServiceTabs />
 
-      <h1 className="text-xl font-semibold">Sub-parameter drill</h1>
+      <h1 className="text-xl font-semibold">
+        Sub-parameter drill
+      </h1>
 
       {/* ================= HEADER ================= */}
+
       <div className="bg-white border rounded-xl p-4 flex flex-wrap gap-3">
 
         {/* CLIENT */}
+
         <select
           value={clientId ?? ""}
-          onChange={(e) => setClientId(Number(e.target.value))}
+          onChange={(e) =>
+            setClientId(Number(e.target.value))
+          }
           className="border h-9 px-2 rounded"
         >
-          {!clientId && <option value="">Select Client</option>}
-          {clients?.map((c) => (
+          {!clientId && (
+            <option value="">Select Client</option>
+          )}
+
+          {clients.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </select>
 
-        {/* DATE FILTER */}
+        {/* DATE */}
+
         <select
           value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
+          onChange={(e) =>
+            setDateFilter(e.target.value)
+          }
           className="border h-9 px-2 rounded"
         >
           <option>Today</option>
@@ -162,41 +248,53 @@ export default function SubParameterDrillPage() {
           <option>Custom Range</option>
         </select>
 
-        {/* ✅ CUSTOM DATE INPUT */}
+        {/* CUSTOM RANGE */}
+
         {dateFilter === "Custom Range" && (
           <>
             <input
               type="date"
               value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+              onChange={(e) =>
+                setFromDate(e.target.value)
+              }
               className="border h-9 px-2 rounded"
             />
+
             <input
               type="date"
               value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+              onChange={(e) =>
+                setToDate(e.target.value)
+              }
               className="border h-9 px-2 rounded"
             />
           </>
         )}
 
         {/* AGENT */}
+
         <select
-          value={selectedAgent || ""}
-          onChange={(e) => setSelectedAgent(e.target.value)}
-          className="border h-9 px-2 rounded"
+          value={selectedAgent}
+          onChange={(e) =>
+            setSelectedAgent(e.target.value)
+          }
+          className="border h-9 px-2 rounded min-w-[180px]"
         >
-          {agents.length === 0 && <option value="">No agents</option>}
+          <option value="All Agents">
+            All Agents
+          </option>
+
           {agents.map((a) => (
             <option key={a} value={a}>
               {a}
             </option>
           ))}
         </select>
-
       </div>
 
       {/* ================= LOADING ================= */}
+
       {(isLoading || clientLoading) && (
         <div className="text-center py-10 text-gray-500">
           Loading...
@@ -204,38 +302,46 @@ export default function SubParameterDrillPage() {
       )}
 
       {/* ================= SUB PARAMS ================= */}
+
       {!isLoading && (
         <div className="bg-white border rounded-xl p-5 space-y-3">
           <h2 className="font-semibold">Opening</h2>
 
           {subParams.map((p, i) => (
-            <div key={i} className="flex items-center gap-3">
-
-              <div className="w-56 text-sm">{p.label}</div>
+            <div
+              key={i}
+              className="flex items-center gap-3"
+            >
+              <div className="w-56 text-sm">
+                {p.label}
+              </div>
 
               <div className="flex-1 bg-gray-200 h-2 rounded">
                 <div
-                  className={`h-2 rounded ${getColor(safe(p.value))}`}
-                  style={{ width: `${safe(p.value)}%` }}
+                  className={`h-2 rounded ${getColor(
+                    safe(p.value)
+                  )}`}
+                  style={{
+                    width: `${safe(p.value)}%`
+                  }}
                 />
               </div>
 
               <div className="w-16 text-sm text-right">
                 {safe(p.value)}%
               </div>
-
             </div>
           ))}
         </div>
       )}
 
       {/* ================= TABLE ================= */}
+
       {!isLoading && (
         <div className="bg-white border rounded-xl p-5">
           <h3 className="mb-3">Agent view</h3>
 
           <table className="w-full text-sm text-center">
-
             <thead className="border-b">
               <tr>
                 <th className="text-left">Agent</th>
@@ -252,30 +358,57 @@ export default function SubParameterDrillPage() {
             <tbody>
               {agentRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-6 text-gray-400">
+                  <td
+                    colSpan={8}
+                    className="py-6 text-gray-400"
+                  >
                     No data
                   </td>
                 </tr>
               ) : (
                 agentRows.map((a, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="text-left">{a.name}</td>
-                    <td>{safe(a.greeting)}%</td>
-                    <td>{safe(a.company)}%</td>
-                    <td>{safe(a.agent)}%</td>
-                    <td>{safe(a.help)}%</td>
-                    <td>{safe(a.clarity)}%</td>
-                    <td>{safe(a.late)}%</td>
-                    <td>{safe(a.voice)}%</td>
+                  <tr
+                    key={i}
+                    className="border-b"
+                  >
+                    <td className="text-left">
+                      {a.name}
+                    </td>
+
+                    <td>
+                      {safe(a.greeting)}%
+                    </td>
+
+                    <td>
+                      {safe(a.company)}%
+                    </td>
+
+                    <td>
+                      {safe(a.agent)}%
+                    </td>
+
+                    <td>
+                      {safe(a.help)}%
+                    </td>
+
+                    <td>
+                      {safe(a.clarity)}%
+                    </td>
+
+                    <td>
+                      {safe(a.late)}%
+                    </td>
+
+                    <td>
+                      {safe(a.voice)}%
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
-
           </table>
         </div>
       )}
-
     </div>
   );
 }

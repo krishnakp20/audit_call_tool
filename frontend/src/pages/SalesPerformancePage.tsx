@@ -18,7 +18,9 @@ import { useUIStore } from "@/store/uiStore";
 import { Client } from "@/types";
 import { useQualitySummary, useRecalculateSummary, useAgentRecalculateSummary } from "@/hooks/useDashboardData";
 import DashboardTabs from "@/components/DashboardTabs";
-
+import { departmentStorage } from "@/services/department";
+const department =
+  departmentStorage.get();
 
 export default function SalesDashboard() {
   const clientId = useUIStore((s) => s.selectedClientId);
@@ -39,18 +41,18 @@ export default function SalesDashboard() {
   };
 
   const clientsQuery = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () => (await api.get<Client[]>("/clients")).data
-  });
+    queryKey: ["clients", department],
+
+      queryFn: async () =>
+        (
+          await api.get<Client[]>(
+            `/clients?department=${department}`
+          )
+        ).data
+    });
 
   // 🔹 Static data (replace with API)
-  const stats = {
-    totalCalls: summary.data?.total_calls ?? 0,
-    conversionRate: summary.data?.conversion ?? 0,
-    partialConversion: summary.data?.partial_conversion ?? 0,
-    noConversion: summary.data?.no_conversion ?? 0,
-    avgQuality: summary.data?.avg_quality_score ?? 0
-  };
+
 
   useEffect(() => {
     if (!clientId && clientsQuery.data?.length) {
@@ -308,18 +310,69 @@ export default function SalesDashboard() {
 }, [agentData]);
 
   // ✅ SECOND: filter
-  const filteredAgents = useMemo(() => {
-    return formattedAgents.filter((agent) => {
-        const matchesDropdown =
-        agentFilter === "All Agents" || agent.name === agentFilter;
+// ✅ SECOND: filter
+const filteredAgents = useMemo(() => {
+  return formattedAgents.filter((agent) => {
+    const matchesDropdown =
+      agentFilter === "All Agents" ||
+      agent.name === agentFilter;
 
-        const matchesSearch =
-        agent.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      agent.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
-        return matchesDropdown && matchesSearch;
-    });
-  }, [agentFilter, searchTerm, formattedAgents]);
-console.log(filteredAgents,"filteredAgents==")
+    return matchesDropdown && matchesSearch;
+  });
+}, [agentFilter, searchTerm, formattedAgents]);
+
+console.log(filteredAgents, "filteredAgents==");
+
+
+// ✅ THIRD: dynamic stats
+const stats = useMemo(() => {
+
+  // 🔹 Single agent selected
+  if (agentFilter !== "All Agents") {
+
+    const selected = filteredAgents[0];
+
+    if (!selected) {
+      return {
+        totalCalls: 0,
+        conversionRate: 0,
+        partialConversion: 0,
+        noConversion: 0,
+        avgQuality: 0
+      };
+    }
+
+    return {
+      totalCalls: selected.calls ?? 0,
+      conversionRate: selected.conversion ?? 0,
+      partialConversion: selected.partial ?? 0,
+      noConversion: selected.noConv ?? 0,
+      avgQuality: selected.score ?? 0
+    };
+  }
+
+  // 🔹 All agents selected
+  return {
+    totalCalls: summary.data?.total_calls ?? 0,
+    conversionRate: summary.data?.conversion ?? 0,
+    partialConversion:
+      summary.data?.partial_conversion ?? 0,
+    noConversion:
+      summary.data?.no_conversion ?? 0,
+    avgQuality:
+      summary.data?.avg_quality_score ?? 0
+  };
+
+}, [
+  agentFilter,
+  filteredAgents,
+  summary.data
+]);
 
 
 
