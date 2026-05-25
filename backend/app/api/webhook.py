@@ -110,7 +110,15 @@ def upload_csv(
 
         for row in csv_reader:
 
-            start_time = datetime.fromisoformat(row["start_time"])
+            try:
+                start_time = datetime.fromisoformat(
+                    row["start_time"].replace("Z", "+00:00")
+                )
+            except:
+                start_time = datetime.strptime(
+                    row["start_time"],
+                    "%d-%m-%Y %H:%M"
+                )
 
             duration = int(row["duration"])
 
