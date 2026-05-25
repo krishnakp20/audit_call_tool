@@ -1,17 +1,19 @@
 import { Link, useLocation } from "react-router-dom";
 import { useUIStore } from "@/store/uiStore";
-import { LayoutDashboard, Users, ScrollText, FileAudio2, Sliders } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  ScrollText,
+  FileAudio2,
+  Sliders,
+  Webhook
+} from "lucide-react";
+
 import { departmentStorage } from "@/services/department";
-const department =
-  departmentStorage.get();
+
+const department = departmentStorage.get();
 
 const items = [
-
-//   {
-//     to: "/",
-//     label: "Dashboard",
-//     icon: LayoutDashboard
-//   },
 
   ...(department === "sales"
     ? [
@@ -51,6 +53,13 @@ const items = [
     icon: FileAudio2
   },
 
+  // ✅ WEBHOOK MENU
+  {
+    to: "/webhook",
+    label: "Webhook",
+    icon: Webhook
+  },
+
   {
     to: "/settings",
     label: "Settings",
@@ -64,21 +73,32 @@ export function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
 
   return (
-    <aside className={`glass-card h-screen p-4 ${collapsed ? "w-20" : "w-64"} transition-all`}>
-      <div className="mb-8 text-lg font-semibold text-sky-600">CallAudit</div>
+    <aside
+      className={`glass-card h-screen p-4 ${
+        collapsed ? "w-20" : "w-64"
+      } transition-all`}
+    >
+      <div className="mb-8 text-lg font-semibold text-sky-600">
+        CallAudit
+      </div>
+
       <nav className="space-y-2">
         {items.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.to;
+
           return (
             <Link
               key={item.to}
               to={item.to}
               className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition ${
-                active ? "bg-sky-100 text-sky-700" : "text-slate-700 hover:bg-amber-100"
+                active
+                  ? "bg-sky-100 text-sky-700"
+                  : "text-slate-700 hover:bg-amber-100"
               }`}
             >
               <Icon size={16} />
+
               {!collapsed && <span>{item.label}</span>}
             </Link>
           );

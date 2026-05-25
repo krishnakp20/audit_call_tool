@@ -27,6 +27,7 @@ import ServiceRedFlagsPage from "@/pages/service/ServiceRedFlagsPage";
 import ServiceWeeklyReportPage from "@/pages/service/ServiceWeeklyReportPage";
 import ServiceTrainingPrioritiesPage from "@/pages/service/ServiceTrainingPrioritiesPage";
 import DepartmentModal from "@/components/DepartmentModal";
+import WebhookPage from "@/pages/WebhookPage";
 
 import { departmentStorage } from "@/services/department";
 
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="calls" element={<CallLogsPage />} />
         <Route path="audit" element={<AuditDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="webhook" element={<WebhookPage />} />
         <Route path="sales">
           {/* Default tab → Overview */}
           <Route index element={<SalesDashboard />} />

@@ -85,21 +85,42 @@ def get_settings(
     agents_list = []
 
     if not ingroups:
-        rows = db2.execute(
+        vicidial_rows = db3.execute(
             text("""
-                SELECT username, displayname
-                FROM agent_master
-                WHERE status = 'A'
-            """)
+                    SELECT user
+                    FROM vicidial_users
+                    WHERE user_group = 'Dialdesk'
+                """)
         ).mappings().all()
 
-        agents_list = [
-            {
-                "username": r["username"],
-                "displayname": r["displayname"]
-            }
-            for r in rows
+        dialdesk_users = [
+            r["user"].strip()
+            for r in vicidial_rows
+            if r["user"]
         ]
+
+        if dialdesk_users:
+            query = text(f"""
+                    SELECT username, displayname
+                    FROM agent_master
+                    WHERE username IN ({",".join([f":u{i}" for i in range(len(dialdesk_users))])})
+                    AND status = 'A'
+                """)
+
+            params = {
+                f"u{i}": user
+                for i, user in enumerate(dialdesk_users)
+            }
+
+            rows = db2.execute(query, params).mappings().all()
+
+            agents_list = [
+                {
+                    "username": r["username"],
+                    "displayname": r["displayname"]
+                }
+                for r in rows
+            ]
 
     elif all_users:
         # 🔥 FIX: dynamic IN clause

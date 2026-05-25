@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     debug: bool = True
 
     secret_key: str = Field(default="change-me", alias="SECRET_KEY")
+    webhook_secret_key: str = Field(
+        default="webhook-secret-key",
+        alias="WEBHOOK_SECRET_KEY"
+    )
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
 

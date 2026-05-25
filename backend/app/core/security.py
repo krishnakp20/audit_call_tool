@@ -53,3 +53,11 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     except JWTError as exc:
         raise ValueError("Invalid token") from exc
     return payload
+
+
+def generate_webhook_sha(client_id: int) -> str:
+    settings = get_settings()
+
+    raw = f"{client_id}{settings.webhook_secret_key}"
+
+    return hashlib.sha256(raw.encode()).hexdigest()
