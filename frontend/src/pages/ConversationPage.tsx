@@ -17,14 +17,16 @@ export default function ConversationPage() {
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
-  const [fromDate, setFromDate] = useState(
-    today.toISOString().slice(0, 10)
-  );
-  const [toDate, setToDate] = useState(
-    today.toISOString().slice(0, 10)
-  );
+  const todayDate = new Date().toISOString().split("T")[0];
+  const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+  const fromDate = useUIStore((s) => s.fromDate);
+  const toDate = useUIStore((s) => s.toDate);
+  const dateFilter = useUIStore((s) => s.dateFilter);
 
-  const [dateFilter, setDateFilter] = useState("Today");
+  const setFromDate = useUIStore((s) => s.setFromDate);
+  const setToDate = useUIStore((s) => s.setToDate);
+  const setDateFilter = useUIStore((s) => s.setDateFilter);
 
   // ✅ Clients API
   const clientsQuery = useQuery({
@@ -55,6 +57,11 @@ export default function ConversationPage() {
         from = today;
         to = today;
       }
+      if (dateFilter === "Yesterday") {
+          from = new Date();
+          from.setDate(today.getDate() - 1);
+          to = from;
+        }
 
       if (dateFilter === "Last 7 Days") {
         from = new Date();
@@ -141,6 +148,7 @@ export default function ConversationPage() {
     onChange={(e) => setDateFilter(e.target.value)}
   >
     <option>Today</option>
+    <option>Yesterday</option>
     <option>Last 7 Days</option>
     <option>Last 30 Days</option>
     <option>Custom Range</option>
@@ -148,22 +156,31 @@ export default function ConversationPage() {
 
   {/* ✅ Custom Date Inputs */}
   {dateFilter === "Custom Range" && (
-    <>
-      <input
-        type="date"
-        value={fromDate}
-        onChange={(e) => setFromDate(e.target.value)}
-        className="h-9 border rounded-md px-2 text-sm"
-      />
-      <span className="text-xs text-gray-500">to</span>
-      <input
-        type="date"
-        value={toDate}
-        onChange={(e) => setToDate(e.target.value)}
-        className="h-9 border rounded-md px-2 text-sm"
-      />
-    </>
-  )}
+          <>
+            <input
+              type="date"
+              value={fromDate}
+              max={todayDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+
+                if (toDate < e.target.value) {
+                  setToDate(e.target.value);
+                }
+              }}
+              className="border h-9 px-2 rounded"
+            />
+
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate}
+              max={todayDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="border h-9 px-2 rounded"
+            />
+          </>
+        )}
 </div>
 
       {/* ✅ TOP CARDS (API CONNECTED) */}

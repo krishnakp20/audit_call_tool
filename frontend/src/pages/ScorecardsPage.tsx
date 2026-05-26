@@ -38,13 +38,16 @@ export default function AgentScorecardsPage() {
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
-  const [fromDate, setFromDate] = useState<string>(
-    today.toISOString().slice(0, 10)
-  );
-  const [toDate, setToDate] = useState<string>(
-    today.toISOString().slice(0, 10)
-  );
-  const [dateFilter, setDateFilter] = useState<string>("Today");
+  const todayDate = new Date().toISOString().split("T")[0];
+  const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+  const fromDate = useUIStore((s) => s.fromDate);
+  const toDate = useUIStore((s) => s.toDate);
+  const dateFilter = useUIStore((s) => s.dateFilter);
+
+  const setFromDate = useUIStore((s) => s.setFromDate);
+  const setToDate = useUIStore((s) => s.setToDate);
+  const setDateFilter = useUIStore((s) => s.setDateFilter);
 
   const [selectedAgent, setSelectedAgent] = useState<string>("");
 
@@ -77,6 +80,12 @@ const clientsQuery = useQuery<Client[]>({
     if (dateFilter === "Today") {
       from = today;
       to = today;
+    }
+
+    if (dateFilter === "Yesterday") {
+      from = new Date();
+      from.setDate(today.getDate() - 1);
+      to = from;
     }
 
     if (dateFilter === "Last 7 Days") {
@@ -160,6 +169,7 @@ const clientsQuery = useQuery<Client[]>({
           onChange={(e) => setDateFilter(e.target.value)}
         >
           <option>Today</option>
+          <option>Yesterday</option>
           <option>Last 7 Days</option>
           <option>Last 30 Days</option>
           <option>Custom Range</option>
@@ -170,16 +180,24 @@ const clientsQuery = useQuery<Client[]>({
             <input
               type="date"
               value={fromDate}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setFromDate(e.target.value)
-              }
+              max={todayDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+
+                if (toDate < e.target.value) {
+                  setToDate(e.target.value);
+                }
+              }}
+              className="border h-9 px-2 rounded"
             />
+
             <input
               type="date"
               value={toDate}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setToDate(e.target.value)
-              }
+              min={fromDate}
+              max={todayDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="border h-9 px-2 rounded"
             />
           </>
         )}
@@ -199,7 +217,7 @@ const clientsQuery = useQuery<Client[]>({
       </div>
 
       {/* SCORECARD */}
-      {agentData && (
+      {agentData ? (
         <div className="bg-white border rounded-xl p-5 space-y-5">
 
           <h2 className="font-semibold text-lg">
@@ -250,26 +268,46 @@ const clientsQuery = useQuery<Client[]>({
           </div>
 
           {/* Gaps */}
-          <div>
-            <h3 className="text-sm font-medium">Gaps</h3>
-            {agentData.gaps.map((g: string, i: number) => (
-              <div
-                key={i}
-                className="text-xs bg-red-100 px-2 py-1 rounded mt-1"
-              >
-                {g}
-              </div>
-            ))}
-          </div>
 
-          {/* Coaching */}
-          <div>
-            <h3 className="text-sm font-medium">Coaching</h3>
-            <p className="text-sm">{agentData.coaching}</p>
-          </div>
+    <div>
+      <h3 className="text-sm font-medium">Gaps</h3>
 
+      {agentData.gaps && agentData.gaps.length > 0 ? (
+        agentData.gaps.map((g: string, i: number) => (
+          <div
+            key={i}
+            className="text-xs bg-red-100 px-2 py-1 rounded mt-1"
+          >
+            {g}
+          </div>
+        ))
+      ) : (
+        <div className="text-xs text-gray-400 mt-1">
+          No gaps found
         </div>
       )}
+    </div>
+
+    {/* Coaching */}
+    <div>
+      <h3 className="text-sm font-medium">Coaching</h3>
+
+      <p className="text-sm">
+        {agentData.coaching &&
+        agentData.coaching.trim() !== ""
+          ? agentData.coaching
+          : "No coaching recommendation available"}
+      </p>
+    </div>
+
+        </div>
+      ) : (
+      <div className="bg-white border rounded-xl p-10 text-center">
+        <p className="text-red-600 font-semibold text-lg">
+          NO RESULTS!
+        </p>
+      </div>
+    )}
 
     </div>
   );

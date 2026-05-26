@@ -33,13 +33,16 @@ export default function CoachingNeedsPage() {
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
-  const [fromDate, setFromDate] = useState<string>(
-    today.toISOString().slice(0,10)
-  );
-  const [toDate, setToDate] = useState<string>(
-    today.toISOString().slice(0,10)
-  );
-  const [dateFilter, setDateFilter] = useState<string>("Today");
+  const todayDate = new Date().toISOString().split("T")[0];
+  const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+  const fromDate = useUIStore((s) => s.fromDate);
+  const toDate = useUIStore((s) => s.toDate);
+  const dateFilter = useUIStore((s) => s.dateFilter);
+
+  const setFromDate = useUIStore((s) => s.setFromDate);
+  const setToDate = useUIStore((s) => s.setToDate);
+  const setDateFilter = useUIStore((s) => s.setDateFilter);
 
   /* ================= CLIENTS ================= */
 
@@ -70,6 +73,12 @@ const { data: clients } = useQuery({
     if (dateFilter === "Today") {
       from = today;
       to = today;
+    }
+
+    if (dateFilter === "Yesterday") {
+      from = new Date();
+      from.setDate(today.getDate() - 1);
+      to = from;
     }
 
     if (dateFilter === "Last 7 Days") {
@@ -155,6 +164,7 @@ const { data: clients } = useQuery({
           className="h-9 border px-2 rounded"
         >
           <option>Today</option>
+          <option>Yesterday</option>
           <option>Last 7 Days</option>
           <option>Last 30 Days</option>
           <option>Custom Range</option>
@@ -165,16 +175,24 @@ const { data: clients } = useQuery({
             <input
               type="date"
               value={fromDate}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setFromDate(e.target.value)
-              }
+              max={todayDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+
+                if (toDate < e.target.value) {
+                  setToDate(e.target.value);
+                }
+              }}
+              className="border h-9 px-2 rounded"
             />
+
             <input
               type="date"
               value={toDate}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setToDate(e.target.value)
-              }
+              min={fromDate}
+              max={todayDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="border h-9 px-2 rounded"
             />
           </>
         )}

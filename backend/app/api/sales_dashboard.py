@@ -599,7 +599,11 @@ def call_audit_log(
             "closing": get_score("Closing & Outcome"),
             "cx": get_score("CX & Compliance"),
 
-            "flags": payload.get("key_gaps", []),
+            "flags": (
+            payload.get("key_gaps")
+            or payload.get("key_gaps_missed_opportunities")
+            or []
+        ),
         })
 
     return {
@@ -969,13 +973,20 @@ def lead_quality(
         for k, v in probability_counts.items()
     ]
 
+    # ✅ ONLY TOP 5 MOST FREQUENT DISQUALIFICATION REASONS
+    top_disqualification = sorted(
+        disqualification_counts.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:5]
+
     disqualification = [
         {
             "reason": reason,
             "percent": round((count / total) * 100),
             "agent": ", ".join(agent_map.get(reason, []))
         }
-        for reason, count in disqualification_counts.items()
+        for reason, count in top_disqualification
     ]
 
     return {
@@ -1038,21 +1049,36 @@ def critical_flags(
         call_flags = []
 
         # 🔹 FLAG CHECKS
-        if flags.get("no_closing_attempt"):
-            flag_counts["No closing attempt"] += 1
-            call_flags.append("No closing attempt")
+        # 🔹 FLAG CHECKS FROM PARAMETER SCORES
 
-        if flags.get("whatsapp_deflection_without_recovery"):
-            flag_counts["WA deflect — no recovery"] += 1
-            call_flags.append("WA deflect — no recovery")
+        for p in parameters:
+            name = p.get("name", "")
+            score = p.get("score", 0)
+            max_score = p.get("max_score", 0)
 
-        if flags.get("no_qualification"):
-            flag_counts["No qualification"] += 1
-            call_flags.append("No qualification")
+            # No closing attempt
+            if name == "Closing & Outcome":
+                if score < max_score or p.get("score_cap_applied"):
+                    flag_counts["No closing attempt"] += 1
+                    call_flags.append("No closing attempt")
 
-        if flags.get("incorrect_information_shared"):
-            flag_counts["Incorrect info given"] += 1
-            call_flags.append("Incorrect info")
+            # WA deflection / objection issue
+            if name == "Objection Handling & Persuasion":
+                if score < max_score:
+                    flag_counts["WA deflect — no recovery"] += 1
+                    call_flags.append("WA deflect — no recovery")
+
+            # No qualification
+            if name == "Discovery & Probing":
+                if score < max_score:
+                    flag_counts["No qualification"] += 1
+                    call_flags.append("No qualification")
+
+            # Incorrect info / compliance issue
+            if name == "CX & Compliance":
+                if score < max_score:
+                    flag_counts["Incorrect info given"] += 1
+                    call_flags.append("Incorrect info given")
 
         # 🔹 CALL LOG (ONLY FLAGGED CALLS)
         score = payload.get("overall", {}).get("percentage_score", 0)
@@ -1168,22 +1194,44 @@ def coaching_needs(
 
         for item in coaching_items:
             item = item.strip()
+
             if not item:
                 continue
 
-            # frequency
+            lower = item.lower()
+
+            # ❌ skip useless generic items
+            skip_words = [
+                "none identified",
+                "continue to maintain",
+                "keep effectively",
+                "good job",
+                "well done",
+                "maintain professionalism",
+                "continue professionalism",
+                "no improvement needed"
+            ]
+
+            if any(w in lower for w in skip_words):
+                continue
+
+            # ❌ skip too short text
+            if len(item) < 12:
+                continue
+
+            # ✅ frequency count
             coaching_freq[item] = coaching_freq.get(item, 0) + 1
 
-            # agent mapping
+            # ✅ agent mapping
             if item not in coaching_agents:
                 coaching_agents[item] = set()
+
             coaching_agents[item].add(agent_id)
 
     # ✅ TOP 5
     sorted_items = sorted(
         coaching_freq.items(),
-        key=lambda x: x[1],
-        reverse=True
+        key=lambda x: (-x[1], len(x[0]))
     )[:5]
 
     result = []

@@ -122,7 +122,14 @@ useEffect(() => {
 
   // ✅ Save mutation
   const saveSettings = useMutation({
-    mutationFn: async () => api.post("/settings", form),
+    mutationFn: async () =>
+      api.post("/settings", {
+        ...form,
+        ingroup_filter:
+          department === "sales"
+            ? []
+            : form.ingroup_filter
+      }),
     onSuccess: () => {
       toast.success("Settings updated");
     },
@@ -298,22 +305,31 @@ useEffect(() => {
       </div>
 
       {/* 🔹 Ingroup Filter */}
-      <div className="flex flex-col gap-1 md:col-span-2">
-        <label className="text-xs font-semibold text-slate-500 uppercase">
-          Ingroup Filter
-        </label>
-        <input
-          className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 outline-none"
-          value={form.ingroup_filter.length ? form.ingroup_filter.join(",") : ""}
-          placeholder="Ingroup filter (comma separated)"
-          onChange={(e) =>
-            setForm((p) => ({
-              ...p,
-              ingroup_filter: e.target.value.split(",").filter(Boolean)
-            }))
-          }
-        />
-      </div>
+      {department !== "sales" && (
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase">
+              Ingroup Filter
+            </label>
+
+            <input
+              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 outline-none"
+              value={
+                form.ingroup_filter.length
+                  ? form.ingroup_filter.join(",")
+                  : ""
+              }
+              placeholder="Ingroup filter (comma separated)"
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  ingroup_filter: e.target.value
+                    .split(",")
+                    .filter(Boolean)
+                }))
+              }
+            />
+          </div>
+        )}
     </div>
 
     {/* ✅ Action Button */}

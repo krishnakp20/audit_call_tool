@@ -152,7 +152,9 @@ const clients = useQuery({
           "Name",
           "DB IP",
           "Campaigns",
-          "Ingroups",
+          ...(department !== "sales"
+            ? ["Ingroups"]
+            : []),
           "Status",
           "Action",
           "Created"
@@ -162,7 +164,9 @@ const clients = useQuery({
             client.name,
             client.dialer_ip,
             client.campaigns,
-            client.ingroups,
+            ...(department !== "sales"
+              ? [client.ingroups]
+              : []),
 
             // STATUS
             <span
@@ -270,7 +274,17 @@ const clients = useQuery({
             {/* FORM */}
             <div className="grid gap-3 md:grid-cols-2">
 
-              {Object.keys(form).map((key) => (
+              {Object.keys(form)
+              .filter((key) => {
+                if (
+                  department === "sales" &&
+                  key === "ingroups"
+                ) {
+                  return false;
+                }
+
+                return true;
+              }).map((key) => (
                 <input
                   key={key}
                   className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500"
@@ -415,12 +429,14 @@ const clients = useQuery({
           <p>{viewClient.campaigns}</p>
         </div>
 
-        <div>
-          <p className="font-semibold text-slate-600">
-            Ingroups
-          </p>
-          <p>{viewClient.ingroups}</p>
-        </div>
+        {department !== "sales" && (
+          <div>
+            <p className="font-semibold text-slate-600">
+              Ingroups
+            </p>
+            <p>{viewClient.ingroups}</p>
+          </div>
+        )}
 
         <div>
           <p className="font-semibold text-slate-600">

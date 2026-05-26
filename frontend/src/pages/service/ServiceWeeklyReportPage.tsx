@@ -44,9 +44,16 @@ export default function WeeklyReportPage() {
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
-  const [dateFilter, setDateFilter] = useState("Today");
-  const [fromDate, setFromDate] = useState(today.toISOString().slice(0, 10));
-  const [toDate, setToDate] = useState(today.toISOString().slice(0, 10));
+  const todayDate = new Date().toISOString().split("T")[0];
+  const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+  const fromDate = useUIStore((s) => s.fromDate);
+  const toDate = useUIStore((s) => s.toDate);
+  const dateFilter = useUIStore((s) => s.dateFilter);
+
+  const setFromDate = useUIStore((s) => s.setFromDate);
+  const setToDate = useUIStore((s) => s.setToDate);
+  const setDateFilter = useUIStore((s) => s.setDateFilter);
 
   /* CLIENT */
 const { data: clients } = useQuery({
@@ -68,18 +75,45 @@ const { data: clients } = useQuery({
 
   /* DATE */
   useEffect(() => {
-    const today = new Date();
-    let from = new Date();
+  const today = new Date();
 
-    if (dateFilter === "Last 7 Days") from.setDate(today.getDate() - 6);
-    if (dateFilter === "Last 30 Days") from.setDate(today.getDate() - 29);
+  let from = new Date();
+  let to = new Date();
 
-    if (dateFilter !== "Custom Range") {
-      const format = (d: Date) => d.toISOString().slice(0, 10);
-      setFromDate(format(from));
-      setToDate(format(today));
-    }
-  }, [dateFilter]);
+  if (dateFilter === "Today") {
+    from = today;
+    to = today;
+  }
+
+  if (dateFilter === "Yesterday") {
+    from = new Date();
+    from.setDate(today.getDate() - 1);
+
+    to = new Date();
+    to.setDate(today.getDate() - 1);
+  }
+
+  if (dateFilter === "Last 7 Days") {
+    from = new Date();
+    from.setDate(today.getDate() - 6);
+
+    to = today;
+  }
+
+  if (dateFilter === "Last 30 Days") {
+    from = new Date();
+    from.setDate(today.getDate() - 29);
+
+    to = today;
+  }
+
+  if (dateFilter !== "Custom Range") {
+    const format = (d: Date) => d.toISOString().slice(0, 10);
+
+    setFromDate(format(from));
+    setToDate(format(to));
+  }
+}, [dateFilter]);
 
   /* API */
   const { data, isLoading } = useQuery<ApiResponse>({
@@ -121,6 +155,7 @@ const { data: clients } = useQuery({
           className="border h-9 px-2 rounded"
         >
           <option>Today</option>
+          <option>Yesterday</option>
           <option>Last 7 Days</option>
           <option>Last 30 Days</option>
           <option>Custom Range</option>
@@ -128,8 +163,28 @@ const { data: clients } = useQuery({
 
         {dateFilter === "Custom Range" && (
           <>
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="border h-9 px-2 rounded"/>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="border h-9 px-2 rounded"/>
+            <input
+              type="date"
+              value={fromDate}
+              max={todayDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+
+                if (toDate < e.target.value) {
+                  setToDate(e.target.value);
+                }
+              }}
+              className="border h-9 px-2 rounded"
+            />
+
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate}
+              max={todayDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="border h-9 px-2 rounded"
+            />
           </>
         )}
       </div>

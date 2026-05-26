@@ -44,14 +44,16 @@ export default function CallAuditLogPage() {
   const setClientId = useUIStore((s) => s.setClientId);
 
   const today = useMemo(() => new Date(), []);
-  const [fromDate, setFromDate] = useState<string>(
-    today.toISOString().slice(0, 10)
-  );
-  const [toDate, setToDate] = useState<string>(
-    today.toISOString().slice(0, 10)
-  );
+  const todayDate = new Date().toISOString().split("T")[0];
+  const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+  const fromDate = useUIStore((s) => s.fromDate);
+  const toDate = useUIStore((s) => s.toDate);
+  const dateFilter = useUIStore((s) => s.dateFilter);
 
-  const [dateFilter, setDateFilter] = useState<string>("Today");
+  const setFromDate = useUIStore((s) => s.setFromDate);
+  const setToDate = useUIStore((s) => s.setToDate);
+  const setDateFilter = useUIStore((s) => s.setDateFilter);
 
   // Pagination
   const [page, setPage] = useState<number>(1);
@@ -85,6 +87,10 @@ export default function CallAuditLogPage() {
   /* ================= DATE LOGIC ================= */
 
   useEffect(() => {
+  setPage(1);
+}, [lead, outcome, score]);
+
+  useEffect(() => {
     const today = new Date();
     let from = new Date();
     let to = new Date();
@@ -92,6 +98,12 @@ export default function CallAuditLogPage() {
     if (dateFilter === "Today") {
       from = today;
       to = today;
+    }
+
+    if (dateFilter === "Yesterday") {
+      from = new Date();
+      from.setDate(today.getDate() - 1);
+      to = from;
     }
 
     if (dateFilter === "Last 7 Days") {
@@ -146,7 +158,14 @@ export default function CallAuditLogPage() {
       if (outcome !== "All outcomes" && r.outcome !== outcome)
         return false;
 
-      if (lead !== "All leads" && r.lead !== lead) return false;
+      if (
+          lead !== "All leads" &&
+          !String(r.lead || "")
+            .toLowerCase()
+            .includes(lead.toLowerCase())
+        ) {
+          return false;
+        }
 
       if (score === "Above 80%" && r.score < 80) return false;
       if (score === "50-79%" && (r.score < 50 || r.score > 79))
@@ -190,6 +209,7 @@ export default function CallAuditLogPage() {
           onChange={(e) => setDateFilter(e.target.value)}
         >
           <option>Today</option>
+          <option>Yesterday</option>
           <option>Last 7 Days</option>
           <option>Last 30 Days</option>
           <option>Custom Range</option>
@@ -200,15 +220,24 @@ export default function CallAuditLogPage() {
             <input
               type="date"
               value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="h-9 border rounded-md px-2 text-sm"
+              max={todayDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+
+                if (toDate < e.target.value) {
+                  setToDate(e.target.value);
+                }
+              }}
+              className="border h-9 px-2 rounded"
             />
-            <span className="text-xs text-gray-500">to</span>
+
             <input
               type="date"
               value={toDate}
+              min={fromDate}
+              max={todayDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="h-9 border rounded-md px-2 text-sm"
+              className="border h-9 px-2 rounded"
             />
           </>
         )}
