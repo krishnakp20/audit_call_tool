@@ -47,12 +47,216 @@ def service_overview(
     avg_score = round(mean([a.percentage or 0 for a in audits]), 2)
 
     # ================= FCR =================
+    # ================= FCR =================
+
+    SUCCESS_OUTCOMES = [
+        "Booked",
+        "Fully Booked",
+        "Resolved",
+        "Converted",
+        "Partially Booked",
+        "Partial Conversion",
+        "Conversion",
+        "Yes"
+    ]
+
     fcr_rate = round(
         mean([
-            100 if (a.audit_json.get("conversion_status") == "Converted") else 0
-            for a in audits if a.audit_json
+            100 if (
+                    ((a.audit_json or {}).get("call_outcome") in SUCCESS_OUTCOMES)
+                    or
+                    ((a.audit_json or {}).get("conversion_status") in SUCCESS_OUTCOMES)
+                    or
+                    str(
+                        (a.audit_json or {})
+                        .get("conversion_audit", {})
+                        .get("booking_done", "")
+                    ).lower() in ["true", "yes", "booked", "1"]
+            ) else 0
+            for a in audits
         ]),
         2
+    )
+
+    # ================= LATE OPENING =================
+
+    late_opening = sum(
+        1
+        for a in audits
+        if (
+                (
+                        (
+                            (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("opening", {})
+                                .get("parameters", {})
+                                .get("greeting_presence", {})
+                            ).get("score", 2)
+
+                            if isinstance(
+                                (
+                                    (a.audit_json or {})
+                                    .get("sections", {})
+                                    .get("opening", {})
+                                    .get("parameters", {})
+                                    .get("greeting_presence")
+                                ),
+                                dict
+                            )
+
+                            else (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("opening", {})
+                                .get("parameters", {})
+                                .get("greeting_presence", 2)
+                            )
+                        ) < 2
+                )
+
+                or
+
+                (
+                        (
+                            (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("opening", {})
+                                .get("parameters", {})
+                                .get("late_opening", {})
+                            ).get("score", 2)
+
+                            if isinstance(
+                                (
+                                    (a.audit_json or {})
+                                    .get("sections", {})
+                                    .get("opening", {})
+                                    .get("parameters", {})
+                                    .get("late_opening")
+                                ),
+                                dict
+                            )
+
+                            else (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("opening", {})
+                                .get("parameters", {})
+                                .get("late_opening", 2)
+                            )
+                        ) < 2
+                )
+        )
+    )
+
+    # ================= WRONG INFO =================
+
+    wrong_info = sum(
+        1
+        for a in audits
+        if (
+
+            # pricing accuracy
+                (
+                        (
+                            (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("offer_pitch", {})
+                                .get("parameters", {})
+                                .get("pricing_accuracy", {})
+                            ).get("score", 2)
+
+                            if isinstance(
+                                (
+                                    (a.audit_json or {})
+                                    .get("sections", {})
+                                    .get("offer_pitch", {})
+                                    .get("parameters", {})
+                                    .get("pricing_accuracy")
+                                ),
+                                dict
+                            )
+
+                            else (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("offer_pitch", {})
+                                .get("parameters", {})
+                                .get("pricing_accuracy", 2)
+                            )
+                        ) < 2
+                )
+
+                or
+
+                # probing_resolution
+                (
+                        (
+                            (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("probing_resolution", {})
+                                .get("parameters", {})
+                                .get("no_misinformation", {})
+                            ).get("score", 2)
+
+                            if isinstance(
+                                (
+                                    (a.audit_json or {})
+                                    .get("sections", {})
+                                    .get("probing_resolution", {})
+                                    .get("parameters", {})
+                                    .get("no_misinformation")
+                                ),
+                                dict
+                            )
+
+                            else (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("probing_resolution", {})
+                                .get("parameters", {})
+                                .get("no_misinformation", 2)
+                            )
+                        ) < 2
+                )
+
+                or
+
+                # understanding_resolution
+                (
+                        (
+                            (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("understanding_resolution", {})
+                                .get("parameters", {})
+                                .get("no_wrong_info", {})
+                            ).get("score", 2)
+
+                            if isinstance(
+                                (
+                                    (a.audit_json or {})
+                                    .get("sections", {})
+                                    .get("understanding_resolution", {})
+                                    .get("parameters", {})
+                                    .get("no_wrong_info")
+                                ),
+                                dict
+                            )
+
+                            else (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("understanding_resolution", {})
+                                .get("parameters", {})
+                                .get("no_wrong_info", 2)
+                            )
+                        ) < 2
+                )
+        )
     )
 
     # ================= CRITICAL =================
@@ -61,7 +265,13 @@ def service_overview(
     # ================= UNCLEAR =================
     unclear_rate = round(
         mean([
-            len(a.audit_json.get("areas_for_improvement", [])) * 5
+            (
+                    len((a.audit_json or {}).get("areas_for_improvement", []))
+                    or
+                    len((a.audit_json or {}).get("key_gaps", []))
+                    or
+                    len((a.audit_json or {}).get("agent_coaching_recommendation", []))
+            ) * 5
             for a in audits if a.audit_json
         ]),
         2
@@ -80,8 +290,23 @@ def service_overview(
 
     parameter_scores = {
         "opening": section_avg("opening"),
-        "understanding": section_avg("probing_resolution"),
-        "resolution": section_avg("probing_resolution"),
+        "understanding": round(mean([
+            (
+                    (a.audit_json or {}).get("sections", {}).get("understanding_resolution", {}).get("score")
+                    or
+                    (a.audit_json or {}).get("sections", {}).get("probing_resolution", {}).get("score", 0)
+            )
+            for a in audits
+        ]), 2),
+
+        "resolution": round(mean([
+            (
+                    (a.audit_json or {}).get("sections", {}).get("understanding_resolution", {}).get("score")
+                    or
+                    (a.audit_json or {}).get("sections", {}).get("probing_resolution", {}).get("score", 0)
+            )
+            for a in audits
+        ]), 2),
         "communication": section_avg("communication"),
         "control": section_avg("process_compliance"),
         "process": section_avg("process_compliance"),
@@ -105,7 +330,11 @@ def service_overview(
 
         fcr = round(
             mean([
-                100 if (r.audit_json.get("conversion_status") == "Converted") else 0
+                100 if (
+                        ((r.audit_json or {}).get("call_outcome") in SUCCESS_OUTCOMES)
+                        or
+                        ((r.audit_json or {}).get("conversion_audit", {}).get("booking_done") is True)
+                ) else 0
                 for r in rows if r.audit_json
             ]),
             2
@@ -172,8 +401,8 @@ def service_overview(
             "fcr_rate": fcr_rate,
             "critical_fails": critical_fails,
             "unclear_rate": unclear_rate,
-            "late_opening": 0,
-            "wrong_info": 0,
+            "late_opening": late_opening,
+            "wrong_info": wrong_info,
             "no_closing": no_closing
         },
         "parameter_scores": parameter_scores,
@@ -330,8 +559,19 @@ def call_audit_log(
             "fcr": data.get("conversion_status", "Partial"),
 
             "opening": sec_score("opening", 14),
-            "understanding": sec_score("probing_resolution", 30),
-            "resolution": sec_score("probing_resolution", 30),
+            "understanding": sec_score(
+                    "probing_resolution"
+                    if sections.get("probing_resolution")
+                    else "understanding_resolution",
+                    30
+                ),
+
+                "resolution": sec_score(
+                    "probing_resolution"
+                    if sections.get("probing_resolution")
+                    else "understanding_resolution",
+                    30
+                ),
             "comms": sec_score("communication", 26),
             "control": sec_score("process_compliance", 20),
             "closing": sec_score("closure", 12),
@@ -388,16 +628,65 @@ def agent_scorecard(
         agent_map[agent]["scores"].append(a.total_score or 0)
 
         # fcr
-        fcr_val = data.get("conversion_status", "Partial")
-        agent_map[agent]["fcr"].append(1 if fcr_val == "Yes" else 0)
+        # ================= FCR =================
+
+        SUCCESS_OUTCOMES = [
+            "booked",
+            "fully booked",
+            "resolved",
+            "converted",
+            "partially booked",
+            "partial conversion",
+            "conversion"
+        ]
+
+        call_outcome = str(
+            data.get("call_outcome", "")
+        ).strip().lower()
+
+        conversion_status = str(
+            data.get("conversion_status")
+            or data.get("call_outcome")
+            or data.get("sentiment", {}).get("conversion_status", "")
+        ).strip().lower()
+
+        booking_done = str(
+            data.get("conversion_audit", {})
+            .get("booking_done", "")
+        ).strip().lower()
+
+        is_fcr = (
+                call_outcome in SUCCESS_OUTCOMES
+                or conversion_status in [
+                    "yes",
+                    "converted",
+                    "conversion",
+                    "partial conversion",
+                    "booked",
+                    "resolved"
+                ]
+                or booking_done in [
+                    "true",
+                    "yes",
+                    "booked",
+                    "1"
+                ]
+        )
+
+        agent_map[agent]["fcr"].append(1 if is_fcr else 0)
 
         # metrics mapping
         def get_score(section):
             return sections.get(section, {}).get("score", 0)
 
         agent_map[agent]["metrics"]["Opening"].append(get_score("opening"))
-        agent_map[agent]["metrics"]["Understanding"].append(get_score("probing_resolution"))
-        agent_map[agent]["metrics"]["Resolution"].append(get_score("probing_resolution"))
+        agent_map[agent]["metrics"]["Understanding"].append(
+            get_score("understanding_resolution") or get_score("probing_resolution")
+        )
+
+        agent_map[agent]["metrics"]["Resolution"].append(
+            get_score("understanding_resolution") or get_score("probing_resolution")
+        )
         agent_map[agent]["metrics"]["Communication"].append(get_score("communication"))
         agent_map[agent]["metrics"]["Control"].append(get_score("process_compliance"))
         agent_map[agent]["metrics"]["Adherence"].append(get_score("process_compliance"))
@@ -799,8 +1088,15 @@ def red_flags(
             wrong_info += 1
 
         # ✅ If no flag skip row
+
+
         if not flag:
             continue
+
+        if score >= 75:
+            flag = "Good Call"
+        elif score >= 50:
+            flag = "Average Call"
 
         rows.append({
             "id": call_id,
@@ -996,7 +1292,11 @@ def weekly_report(
         )
 
         # ---------- UNDERSTANDING ----------
-        probing = sections.get("probing_resolution", {}).get("parameters", {})
+        probing = (
+                sections.get("probing_resolution", {}).get("parameters", {})
+                or
+                sections.get("understanding_resolution", {}).get("parameters", {})
+        )
         agent_data[agent]["understanding"].append(
             get_score(probing, "issue_understanding") * 50
         )

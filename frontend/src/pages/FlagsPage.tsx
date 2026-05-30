@@ -254,7 +254,15 @@ const clientsQuery = useQuery<Client[]>({
                 <td className="p-2 text-left">{row.agent}</td>
 
                 <td>
-                  <span className="px-2 py-1 text-xs rounded bg-red-100 text-red-600">
+                  <span
+                    className={`px-2 py-1 text-xs rounded ${
+                      row.flag === "Good Call"
+                        ? "bg-green-100 text-green-700"
+                        : row.flag === "Average Call"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-red-100 text-red-600"
+                    }`}
+                  >
                     {row.flag}
                   </span>
                 </td>
