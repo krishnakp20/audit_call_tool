@@ -650,13 +650,32 @@ def parameter_drill(
     # -------------------------
     for audit, log in rows:
         payload = audit.audit_json or {}
-        params = payload.get("parameter_scores", [])
+        sections = list((payload.get("sections") or {}).items())
 
-        if parameter_index >= len(params):
+        if parameter_index >= len(sections):
             continue
 
-        param = params[parameter_index]
-        sub_params = param.get("sub_parameter_scores", [])
+        section_name, section_data = sections[parameter_index]
+
+        if not isinstance(section_data, dict):
+            continue
+
+        parameters = section_data.get("parameters", {})
+
+        sub_params = []
+
+        for key, value in parameters.items():
+
+            if not isinstance(value, dict):
+                continue
+
+            sub_params.append(
+                {
+                    "name": key,
+                    "score": value.get("score"),
+                    "max_score": value.get("max_score", value.get("score", 1)),
+                }
+            )
 
         agent_id = getattr(log, "agent_id", "Unknown")
         subparam_names = {}
@@ -675,7 +694,7 @@ def parameter_drill(
             subparam_names[idx] = sp.get("name", f"Sub Param {idx + 1}")
 
         # total score
-        total_score = param.get("score")
+        total_score = section_data.get("score")
         if total_score is not None:
             agent_total[agent_id].append(total_score)
 
@@ -692,7 +711,7 @@ def parameter_drill(
             "name": subparam_names.get(idx, f"Sub Param {idx + 1}"),
             "score": avg_score,
             "max": max_score,
-            "percent": round((avg_score / max_score) * 100, 1)
+            "percent": round((avg_score / (max_score or 1)) * 100, 1)
         })
 
     # -------------------------
