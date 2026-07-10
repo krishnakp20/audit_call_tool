@@ -62,17 +62,25 @@ def service_overview(
 
     fcr_rate = round(
         mean([
-            100 if (
-                    ((a.audit_json or {}).get("call_outcome") in SUCCESS_OUTCOMES)
-                    or
-                    ((a.audit_json or {}).get("conversion_status") in SUCCESS_OUTCOMES)
-                    or
-                    str(
-                        (a.audit_json or {})
-                        .get("conversion_audit", {})
-                        .get("booking_done", "")
-                    ).lower() in ["true", "yes", "booked", "1"]
-            ) else 0
+            (
+                (a.audit_json or {})
+                .get("fcr_evaluation", {})
+                .get("percentage")
+            )
+            if (a.audit_json or {}).get("fcr_evaluation")
+            else (
+                100 if (
+                        ((a.audit_json or {}).get("call_outcome") in SUCCESS_OUTCOMES)
+                        or
+                        ((a.audit_json or {}).get("conversion_status") in SUCCESS_OUTCOMES)
+                        or
+                        str(
+                            (a.audit_json or {})
+                            .get("conversion_audit", {})
+                            .get("booking_done", "")
+                        ).lower() in ["true", "yes", "booked", "1"]
+                ) else 0
+            )
             for a in audits
         ]),
         2
@@ -330,11 +338,19 @@ def service_overview(
 
         fcr = round(
             mean([
-                100 if (
-                        ((r.audit_json or {}).get("call_outcome") in SUCCESS_OUTCOMES)
-                        or
-                        ((r.audit_json or {}).get("conversion_audit", {}).get("booking_done") is True)
-                ) else 0
+                (
+                    (r.audit_json or {})
+                    .get("fcr_evaluation", {})
+                    .get("percentage")
+                )
+                if (r.audit_json or {}).get("fcr_evaluation")
+                else (
+                    100 if (
+                            ((r.audit_json or {}).get("call_outcome") in SUCCESS_OUTCOMES)
+                            or
+                            ((r.audit_json or {}).get("conversion_audit", {}).get("booking_done") is True)
+                    ) else 0
+                )
                 for r in rows if r.audit_json
             ]),
             2
