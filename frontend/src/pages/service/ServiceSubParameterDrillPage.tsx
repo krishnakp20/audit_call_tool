@@ -22,13 +22,7 @@ type SubParam = {
 
 type AgentRow = {
   name: string;
-  greeting: number;
-  company: number;
-  agent: number;
-  help: number;
-  clarity: number;
-  late: number;
-  voice: number;
+  [key: string]: any;
 };
 
 type ApiResponse = {
@@ -68,6 +62,15 @@ export default function SubParameterDrillPage() {
 
   /* ✅ IMPORTANT */
   const [selectedAgent, setSelectedAgent] = useState("All Agents");
+  const [parameterIndex, setParameterIndex] = useState(0);
+
+    const sectionNames = [
+      "Opening",
+      "Communication",
+      "Probing & Resolution",
+      "Process Compliance",
+      "Closure"
+    ];
 
   /* ================= CLIENT ================= */
 
@@ -136,13 +139,14 @@ export default function SubParameterDrillPage() {
       "sub-param",
       clientId,
       fromDate,
-      toDate
+      toDate,
+      parameterIndex
     ],
 
     queryFn: async () => {
       const res = await api.get(
-        `/service-dashboard/sub-parameter-drill?client_id=${clientId}&date_from=${fromDate}&date_to=${toDate}`
-      );
+      `/service-dashboard/sub-parameter-drill?client_id=${clientId}&parameter_index=${parameterIndex}&date_from=${fromDate}&date_to=${toDate}`
+    );
 
       return res.data;
     },
@@ -164,46 +168,28 @@ export default function SubParameterDrillPage() {
 
   /* ✅ SUB PARAM ALSO CHANGE */
   const subParams =
-    selectedAgent === "All Agents"
-      ? data?.sub_params || []
-      : (() => {
-          const found = (data?.agents || []).find(
-            (a) => a.name === selectedAgent
-          );
+  selectedAgent === "All Agents"
+    ? data?.sub_params || []
+    : (() => {
+        const found = (data?.agents || []).find(
+          (a) => a.name === selectedAgent
+        );
 
-          if (!found) return [];
+        if (!found) return [];
 
-          return [
-            {
-              label: "Greeting presence",
-              value: found.greeting
-            },
-            {
-              label: "Company identification",
-              value: found.company
-            },
-            {
-              label: "Agent identification",
-              value: found.agent
-            },
-            {
-              label: "Offer of help",
-              value: found.help
-            },
-            {
-              label: "Opening clarity and flow",
-              value: found.clarity
-            },
-            {
-              label: "Late opening",
-              value: found.late
-            },
-            {
-              label: "Voice energy",
-              value: found.voice
-            }
-          ];
-        })();
+        return (data?.sub_params || []).map((p) => ({
+          ...p,
+          value: safe(
+            found[
+              p.label
+                .toLowerCase()
+                .replaceAll("&", "")
+                .replaceAll("/", "")
+                .replaceAll(" ", "_")
+            ]
+          )
+        }));
+      })();
 
   /* ================= UI ================= */
 
@@ -303,6 +289,20 @@ export default function SubParameterDrillPage() {
             </option>
           ))}
         </select>
+
+        <select
+  value={parameterIndex}
+  onChange={(e) =>
+    setParameterIndex(Number(e.target.value))
+  }
+  className="border h-9 px-2 rounded"
+>
+  <option value={0}>Opening</option>
+  <option value={1}>Communication</option>
+  <option value={2}>Probing & Resolution</option>
+  <option value={3}>Process Compliance</option>
+  <option value={4}>Closure</option>
+</select>
       </div>
 
       {/* ================= LOADING ================= */}
@@ -317,7 +317,9 @@ export default function SubParameterDrillPage() {
 
       {!isLoading && (
         <div className="bg-white border rounded-xl p-5 space-y-3">
-          <h2 className="font-semibold">Opening</h2>
+          <h2 className="font-semibold">
+              {sectionNames[parameterIndex]}
+            </h2>
 
           {subParams.map((p, i) => (
             <div
@@ -355,23 +357,20 @@ export default function SubParameterDrillPage() {
 
           <table className="w-full text-sm text-center">
             <thead className="border-b">
-              <tr>
-                <th className="text-left">Agent</th>
-                <th>Greeting</th>
-                <th>Company</th>
-                <th>Agent</th>
-                <th>Help</th>
-                <th>Clarity</th>
-                <th>Late</th>
-                <th>Voice</th>
-              </tr>
-            </thead>
+                  <tr>
+                    <th className="text-left">Agent</th>
+
+                    {subParams.map((p, i) => (
+                      <th key={i}>{p.label}</th>
+                    ))}
+                  </tr>
+                </thead>
 
             <tbody>
               {agentRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={subParams.length + 1}
                     className="py-6 text-gray-400"
                   >
                     No data
@@ -387,33 +386,18 @@ export default function SubParameterDrillPage() {
                       {a.name}
                     </td>
 
-                    <td>
-                      {safe(a.greeting)}%
-                    </td>
-
-                    <td>
-                      {safe(a.company)}%
-                    </td>
-
-                    <td>
-                      {safe(a.agent)}%
-                    </td>
-
-                    <td>
-                      {safe(a.help)}%
-                    </td>
-
-                    <td>
-                      {safe(a.clarity)}%
-                    </td>
-
-                    <td>
-                      {safe(a.late)}%
-                    </td>
-
-                    <td>
-                      {safe(a.voice)}%
-                    </td>
+                    {subParams.map((p, idx) => (
+                      <td key={idx}>
+                        {safe(
+                          a[
+                            p.label
+                              .toLowerCase()
+                              .replaceAll(" ", "_")
+                          ]
+                        )}
+                        %
+                      </td>
+                    ))}
                   </tr>
                 ))
               )}

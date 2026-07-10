@@ -742,6 +742,7 @@ def sub_parameter_drill(
     client_id: int,
     date_from: date,
     date_to: date,
+    parameter_index: int = 0,
     agent: str | None = None,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
@@ -778,6 +779,16 @@ def sub_parameter_drill(
 
     agent_scores = defaultdict(lambda: defaultdict(list))
 
+    SECTION_MAP = {
+        0: "opening",
+        1: "communication",
+        2: "probing_resolution",
+        3: "process_compliance",
+        4: "closure",
+    }
+
+    section_name = SECTION_MAP.get(parameter_index, "opening")
+
     for a in audits:
         data = a.audit_json or {}
 
@@ -786,31 +797,24 @@ def sub_parameter_drill(
         if agent and agent != agent_name:
             continue
 
-        opening = data.get("sections", {}).get("opening", {})
+        section = data.get("sections", {}).get(section_name, {})
 
-        agent_scores[agent_name]["greeting"].append(get_param(opening, "greeting_presence") * 50)
-        agent_scores[agent_name]["company"].append(get_param(opening, "company_identification") * 50)
-        agent_scores[agent_name]["agent"].append(get_param(opening, "agent_identification") * 50)
-        agent_scores[agent_name]["help"].append(get_param(opening, "offer_of_help") * 50)
-        agent_scores[agent_name]["clarity"].append(get_param(opening, "opening_clarity_flow") * 50)
-        agent_scores[agent_name]["late"].append(get_param(opening, "late_opening") * 50)
-        agent_scores[agent_name]["voice"].append(get_param(opening, "voice_energy") * 50)
+        for key, value in section.get("parameters", {}).items():
+            score = get_param(section, key) * 50
+
+            agent_scores[agent_name][key].append(score)
 
     # ================= AGENT TABLE =================
 
     agent_rows = []
 
     for name, vals in agent_scores.items():
-        agent_rows.append({
-            "name": name,
-            "greeting": avg(vals["greeting"]),
-            "company": avg(vals["company"]),
-            "agent": avg(vals["agent"]),
-            "help": avg(vals["help"]),
-            "clarity": avg(vals["clarity"]),
-            "late": avg(vals["late"]),
-            "voice": avg(vals["voice"])
-        })
+        row = {"name": name}
+
+        for key, scores in vals.items():
+            row[key] = avg(scores)
+
+        agent_rows.append(row)
 
     # ================= SUB PARAM (SELECTED AGENT) =================
 
@@ -821,19 +825,15 @@ def sub_parameter_drill(
     if selected_agent in agent_scores:
         vals = agent_scores[selected_agent]
 
-        sub_params = [
-            {"label": "Greeting presence", "value": avg(vals["greeting"])},
-            {"label": "Company identification", "value": avg(vals["company"])},
-            {"label": "Agent identification", "value": avg(vals["agent"])},
-            {"label": "Offer of help", "value": avg(vals["help"])},
-            {"label": "Opening clarity and flow", "value": avg(vals["clarity"])},
-            {
-                "label": "Late opening",
-                "value": avg(vals["late"]),
-                "late": 100 - avg(vals["late"])
-            },
-            {"label": "Voice energy", "value": avg(vals["voice"])}
-        ]
+        sub_params = []
+
+        for key, scores in vals.items():
+            sub_params.append(
+                {
+                    "label": key.replace("_", " ").title(),
+                    "value": avg(scores)
+                }
+            )
 
     return {
         "sub_params": sub_params,
@@ -1095,7 +1095,7 @@ def red_flags(
             repeat_risk += 1
 
         # ================= PROCESS =================
-        process = sections.get("process_compliance", {}).get("parameters", {})
+        process = sections.get("probing_resolution", {}).get("parameters", {})
 
         if get_score(process, "no_misinformation") == 0:
             flag = "Wrong info"
