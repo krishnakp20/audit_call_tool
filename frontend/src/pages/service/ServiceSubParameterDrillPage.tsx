@@ -182,10 +182,10 @@ export default function SubParameterDrillPage() {
           value: safe(
             found[
               p.label
-                .toLowerCase()
-                .replaceAll("&", "")
-                .replaceAll("/", "")
-                .replaceAll(" ", "_")
+              .toLowerCase()
+              .replace(/&/g, "")
+              .replace(/\//g, "")
+              .replace(/ /g, "_")
             ]
           )
         }));
@@ -392,7 +392,7 @@ export default function SubParameterDrillPage() {
                           a[
                             p.label
                               .toLowerCase()
-                              .replaceAll(" ", "_")
+                              .replace(/ /g, "_")
                           ]
                         )}
                         %
