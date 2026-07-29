@@ -1304,7 +1304,7 @@ def weekly_report(
         # ---------- OPENING ----------
         opening = sections.get("opening", {}).get("parameters", {})
         agent_data[agent]["opening"].append(
-            get_score(opening, "greeting_presence") * 50
+            min(get_score(opening, "greeting_presence") * 50, 100)
         )
 
         # ---------- UNDERSTANDING ----------
@@ -1314,18 +1314,18 @@ def weekly_report(
                 sections.get("understanding_resolution", {}).get("parameters", {})
         )
         agent_data[agent]["understanding"].append(
-            get_score(probing, "issue_understanding") * 50
+            min(get_score(probing, "issue_understanding") * 50, 100)
         )
 
         # ---------- RESOLUTION ----------
         agent_data[agent]["resolution"].append(
-            get_score(probing, "completeness_of_resolution") * 50
+            min(get_score(probing, "completeness_of_resolution") * 50, 100)
         )
 
         # ---------- CLOSING ----------
         closing = sections.get("closure", {}).get("parameters", {})
         agent_data[agent]["closing"].append(
-            get_score(closing, "summary_given") * 50
+            min(get_score(closing, "summary_given") * 50, 100)
         )
 
         # ---------- ISSUES ----------
