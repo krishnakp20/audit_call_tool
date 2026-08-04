@@ -14,6 +14,8 @@ from app.models.user import User
 from pydantic import BaseModel
 from sqlalchemy import func
 
+from app.models.call_log import CallLog
+
 router = APIRouter(prefix="/service-dashboard", tags=["Service Dashboard"])
 
 @router.get("/overview")
@@ -537,10 +539,14 @@ def call_audit_log(
 ):
 
     # ✅ BASE QUERY
-    query = db.query(CallAudit).filter(
-        CallAudit.client_id == client_id,
-        func.date(CallAudit.created_at) >= date_from,
-        func.date(CallAudit.created_at) <= date_to
+    query = (
+        db.query(CallAudit, CallLog)
+        .join(CallLog, CallAudit.call_id == CallLog.call_id)
+        .filter(
+            CallAudit.client_id == client_id,
+            func.date(CallAudit.created_at) >= date_from,
+            func.date(CallAudit.created_at) <= date_to,
+        )
     )
 
     # ✅ TOTAL COUNT (IMPORTANT)
@@ -557,7 +563,7 @@ def call_audit_log(
 
     response = []
 
-    for a in audits:
+    for a, call in audits:
         data = a.audit_json or {}
         sections = data.get("sections", {})
 
@@ -570,7 +576,7 @@ def call_audit_log(
             "agent": a.agent_id or "Unknown",
             "client_id": a.client_id,
             "date": str(a.created_at.date()),
-            "duration": "0m0s",  # update if available
+            "duration": call.duration,  # update if available
             "score": a.total_score or 0,
             "fcr": data.get("conversion_status", "Partial"),
 
@@ -1082,16 +1088,21 @@ def red_flags(
         # ================= PROBING =================
         probing = sections.get("probing_resolution", {}).get("parameters", {})
 
+        repeat_flag = False
+
         if get_score(probing, "relevant_probing") == 0:
             flag = "Premature solution"
             impact = "-6 pts"
             note = "Solution given before probing"
-            repeat_risk += 1
+            repeat_flag = True
 
         if get_score(probing, "issue_understanding") == 0:
             flag = "Repeat issue"
             impact = "-8 pts"
             note = "Customer had to repeat issue"
+            repeat_flag = True
+
+        if repeat_flag:
             repeat_risk += 1
 
         # ================= PROCESS =================
