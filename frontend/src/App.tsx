@@ -39,19 +39,28 @@ function ProtectedRoute({ children }: { children: ReactElement }) {
 }
 
 export default function App() {
-    const department =
-  departmentStorage.get();
+  const department =
+    departmentStorage.get();
+
+  const user =
+    authStorage.getUser();
 
   if (
-  authStorage.getToken() &&
-  !department
-) {
-  return (
-    <DepartmentModal
-      open={true}
-    />
-  );
-}
+    authStorage.getToken() &&
+    !department
+  ) {
+    return (
+      <DepartmentModal
+        open={true}
+      />
+    );
+  }
+
+  const isSuperuser =
+    user?.is_superuser ?? true;
+
+  const clientHome =
+    department === "service" ? "/service" : "/sales";
 
   return (
     <Routes>
@@ -64,8 +73,26 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
-        <Route path="clients" element={<ClientsPage />} />
+        <Route
+          index
+          element={
+            isSuperuser ? (
+              <DashboardPage />
+            ) : (
+              <Navigate to={clientHome} replace />
+            )
+          }
+        />
+        <Route
+          path="clients"
+          element={
+            isSuperuser ? (
+              <ClientsPage />
+            ) : (
+              <Navigate to={clientHome} replace />
+            )
+          }
+        />
         <Route path="prompts" element={<PromptBuilderPage />} />
         <Route path="calls" element={<CallLogsPage />} />
         <Route path="audit" element={<AuditDetailPage />} />

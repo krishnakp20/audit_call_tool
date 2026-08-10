@@ -10,6 +10,8 @@ const department =
 
 const emptyClient = {
   name: "",
+  email: "",
+  password: "",
   dialer_ip: "",
   dialer_user: "",
   dialer_pass: "",
@@ -217,6 +219,8 @@ const clients = useQuery({
 
                   setForm({
                     name: client.name || "",
+                    email: client.email || "",
+                    password: "",
                     dialer_ip: client.dialer_ip || "",
                     dialer_user: client.dialer_user || "",
                     dialer_pass: client.dialer_pass || "",
@@ -287,10 +291,13 @@ const clients = useQuery({
               }).map((key) => (
                 <input
                   key={key}
+                  type={key === "password" ? "password" : "text"}
                   className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500"
                   placeholder={
                   key === "dialer_ip"
                     ? "DB IP"
+                    : key === "password"
+                    ? "Login Password"
                     : key.replace(/_/g, " ")
                 }
                   value={
@@ -378,6 +385,13 @@ const clients = useQuery({
             Name
           </p>
           <p>{viewClient.name}</p>
+        </div>
+
+        <div>
+          <p className="font-semibold text-slate-600">
+            Login Email
+          </p>
+          <p>{viewClient.email || "-"}</p>
         </div>
 
         <div>

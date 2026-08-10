@@ -16,7 +16,8 @@ class ClientBase(BaseModel):
 
 
 class ClientCreate(ClientBase):
-    pass
+    email: str
+    password: str
 
 
 class ClientUpdate(BaseModel):
@@ -29,6 +30,8 @@ class ClientUpdate(BaseModel):
     db_pass: str | None = None
     campaigns: str | None = None
     ingroups: str | None = None
+    email: str | None = None
+    password: str | None = None
 
 
 class ClientOut(BaseModel):
@@ -46,6 +49,8 @@ class ClientOut(BaseModel):
 
     campaigns: str
     ingroups: str
+
+    email: str | None = None
 
     created_at: datetime
 

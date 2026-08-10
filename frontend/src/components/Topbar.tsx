@@ -23,7 +23,7 @@ export function Topbar() {
     );
 
     // CLEAR TOKEN
-    authStorage.clearToken();
+    authStorage.clear();
 
     toast.success(
       "Logged out"

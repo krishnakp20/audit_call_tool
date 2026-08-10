@@ -23,3 +23,4 @@ class Client(Base, TimestampMixin):
     audits = relationship("CallAudit", back_populates="client", cascade="all, delete-orphan")
     prompts = relationship("ClientPrompt", back_populates="client", cascade="all, delete-orphan")
     settings = relationship("Setting", back_populates="client", cascade="all, delete-orphan")
+    users = relationship("User", back_populates="client", cascade="all, delete-orphan")

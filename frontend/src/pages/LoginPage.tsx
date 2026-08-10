@@ -5,20 +5,38 @@ import { authStorage } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 import { departmentStorage } from "@/services/department";
+import { useUIStore } from "@/store/uiStore";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@callaudit.local");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  //const [email, setEmail] = useState("admin@callaudit.local");
+  //const [password, setPassword] = useState("admin123");
   const [loading, setLoading] = useState(false);
+  const setClientId = useUIStore((s) => s.setClientId);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       const { data } = await api.post("/auth/login", { email, password });
+
       authStorage.setToken(data.access_token);
-      departmentStorage.clear();
+      authStorage.setUser({
+        email: data.email,
+        is_superuser: data.is_superuser,
+        client_id: data.client_id,
+        client_name: data.client_name,
+        department: data.department
+      });
+
+      if (data.client_id) {
+        departmentStorage.set(data.department || "sales");
+        setClientId(data.client_id);
+      } else {
+        departmentStorage.clear();
+      }
 
       toast.success("Login successful");
       window.location.href = "/";

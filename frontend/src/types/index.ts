@@ -1,6 +1,7 @@
 export interface Client {
   id: number;
   name: string;
+  email?: string | null;
   dialer_ip: string;
   dialer_user: string;
   dialer_pass: string;

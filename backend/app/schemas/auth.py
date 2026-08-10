@@ -9,3 +9,11 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class LoginResponse(TokenResponse):
+    email: str
+    is_superuser: bool
+    client_id: int | None = None
+    client_name: str | None = None
+    department: str | None = None

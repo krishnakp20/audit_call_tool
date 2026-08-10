@@ -10,8 +10,12 @@ import {
 } from "lucide-react";
 
 import { departmentStorage } from "@/services/department";
+import { authStorage } from "@/services/auth";
 
 const department = departmentStorage.get();
+
+const user = authStorage.getUser();
+const isSuperuser = user?.is_superuser ?? true;
 
 const items = [
 
@@ -35,11 +39,15 @@ const items = [
       ]
     : []),
 
-  {
-    to: "/clients",
-    label: "Clients",
-    icon: Users
-  },
+  ...(isSuperuser
+    ? [
+        {
+          to: "/clients",
+          label: "Clients",
+          icon: Users
+        }
+      ]
+    : []),
 
   {
     to: "/prompts",
