@@ -81,6 +81,14 @@ def service_overview(
                             .get("conversion_audit", {})
                             .get("booking_done", "")
                         ).lower() in ["true", "yes", "booked", "1"]
+
+                        # ADD THIS
+                        or
+                        str(
+                            (a.audit_json or {})
+                            .get("query_audit", {})
+                            .get("request_raised", "")
+                        ).lower() == "yes"
                 ) else 0
             )
             for a in audits
@@ -266,6 +274,39 @@ def service_overview(
                             )
                         ) < 2
                 )
+                or
+
+                # data_collection_query_handling - new JSON
+                (
+                        (
+                            (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("data_collection_query_handling", {})
+                                .get("parameters", {})
+                                .get("no_misinformation", {})
+                            ).get("score", 2)
+
+                            if isinstance(
+                                (
+                                    (a.audit_json or {})
+                                    .get("sections", {})
+                                    .get("data_collection_query_handling", {})
+                                    .get("parameters", {})
+                                    .get("no_misinformation")
+                                ),
+                                dict
+                            )
+
+                            else (
+                                (a.audit_json or {})
+                                .get("sections", {})
+                                .get("data_collection_query_handling", {})
+                                .get("parameters", {})
+                                .get("no_misinformation", 2)
+                            )
+                        ) < 2
+                )
         )
     )
 
@@ -411,9 +452,7 @@ def service_overview(
                 resolution_params.get("completeness_of_resolution", {}).get("score", 1) == 0
         )
 
-        not_converted = conversion_status != "Conversion"
-
-        if missing_closure or incomplete_resolution or not_converted:
+        if missing_closure or incomplete_resolution:
             no_closing += 1
 
     late_opening = round((late_opening / total_calls) * 100, 2)
