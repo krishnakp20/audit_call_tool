@@ -303,7 +303,7 @@ const { data: clients } = useQuery({
 
                     <td>
                       <span className={`px-2 py-1 text-xs rounded ${
-                        r.fcr === "Yes"
+                        r.fcr === "Resolved"
                           ? "bg-green-100 text-green-700"
                           : r.fcr === "Partial"
                           ? "bg-orange-100 text-orange-600"

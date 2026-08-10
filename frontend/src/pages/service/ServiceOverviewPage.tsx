@@ -222,7 +222,7 @@ const { data: clients } = useQuery({
           <Card title="Unclear Rate" value={formatPercent(data.cards?.unclear_rate)} />
           <Card title="Late Opening" value={formatPercent(data.cards?.late_opening)} />
           <Card title="Wrong Info" value={formatPercent(data.cards?.wrong_info)} />
-          <Card title="No Closing" value={formatPercent(data.cards?.no_closing)} />
+          <Card title="No Closing (On The Call Audit)" value={formatPercent(data.cards?.no_closing)} />
 
         </div>
       )}

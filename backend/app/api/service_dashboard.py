@@ -395,7 +395,19 @@ def service_overview(
                     100 if (
                             ((r.audit_json or {}).get("call_outcome") in SUCCESS_OUTCOMES)
                             or
-                            ((r.audit_json or {}).get("conversion_audit", {}).get("booking_done") is True)
+                            ((r.audit_json or {}).get("conversion_status") in SUCCESS_OUTCOMES)
+                            or
+                            str(
+                                (r.audit_json or {})
+                                .get("conversion_audit", {})
+                                .get("booking_done", "")
+                            ).lower() in ["true", "yes", "booked", "1"]
+                            or
+                            str(
+                                (r.audit_json or {})
+                                .get("query_audit", {})
+                                .get("request_raised", "")
+                            ).lower() == "yes"
                     ) else 0
                 )
                 for r in rows if r.audit_json
@@ -608,7 +620,19 @@ def call_audit_log(
         .all()
     )
 
+    SUCCESS_OUTCOMES = [
+        "Booked",
+        "Fully Booked",
+        "Resolved",
+        "Converted",
+        "Partially Booked",
+        "Partial Conversion",
+        "Conversion",
+        "Yes"
+    ]
+
     response = []
+
 
     for a, call in audits:
         data = a.audit_json or {}
@@ -618,6 +642,37 @@ def call_audit_log(
             val = sections.get(name, {}).get("score", 0)
             return f"{val}/{total}"
 
+        # ================= FCR STATUS =================
+
+        if data.get("fcr_evaluation"):
+            fcr_percentage = data.get("fcr_evaluation", {}).get("percentage", 0)
+
+            if fcr_percentage >= 100:
+                fcr_status = "Resolved"
+            elif fcr_percentage > 0:
+                fcr_status = "Partial"
+            else:
+                fcr_status = "Not Resolved"
+
+        else:
+            fcr_success = (
+                    data.get("call_outcome") in SUCCESS_OUTCOMES
+                    or
+                    data.get("conversion_status") in SUCCESS_OUTCOMES
+                    or
+                    str(
+                        data.get("conversion_audit", {})
+                        .get("booking_done", "")
+                    ).lower() in ["true", "yes", "booked", "1"]
+                    or
+                    str(
+                        data.get("query_audit", {})
+                        .get("request_raised", "")
+                    ).lower() == "yes"
+            )
+
+            fcr_status = "Resolved" if fcr_success else "Not Resolved"
+
         response.append({
             "id": f"CS-{a.id}",
             "agent": a.agent_id or "Unknown",
@@ -625,7 +680,7 @@ def call_audit_log(
             "date": str(a.created_at.date()),
             "duration": call.duration,  # update if available
             "score": a.total_score or 0,
-            "fcr": data.get("conversion_status", "Partial"),
+            "fcr": fcr_status,
 
             "opening": sec_score("opening", 14),
             "understanding": sec_score(
@@ -653,7 +708,7 @@ def call_audit_log(
             "control": sec_score("process_compliance", 20),
             "closing": sec_score("closure", 12),
 
-            "unclear": f"{data.get('percentage', 0)}%"
+            "unclear": f"{len(data.get('areas_for_improvement', [])) * 5}%"
         })
 
     # ✅ FINAL RESPONSE
@@ -1378,14 +1433,30 @@ def weekly_report(
                 sections.get("probing_resolution", {}).get("parameters", {})
                 or
                 sections.get("understanding_resolution", {}).get("parameters", {})
+                or
+                sections.get("data_collection_query_handling", {}).get("parameters", {})
         )
         agent_data[agent]["understanding"].append(
-            min(get_score(probing, "issue_understanding") * 50, 100)
+            min(
+                (
+                        get_score(probing, "issue_understanding")
+                        or
+                        get_score(probing, "query_understanding")
+                ) * 50,
+                100
+            )
         )
 
         # ---------- RESOLUTION ----------
         agent_data[agent]["resolution"].append(
-            min(get_score(probing, "completeness_of_resolution") * 50, 100)
+            min(
+                (
+                        get_score(probing, "completeness_of_resolution")
+                        or
+                        get_score(probing, "solution_orientation")
+                ) * 50,
+                100
+            )
         )
 
         # ---------- CLOSING ----------

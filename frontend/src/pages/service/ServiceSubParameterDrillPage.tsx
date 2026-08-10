@@ -50,8 +50,7 @@ export default function SubParameterDrillPage() {
 
   const today = useMemo(() => new Date(), []);
   const todayDate = new Date().toISOString().split("T")[0];
-  const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+
   const fromDate = useUIStore((s) => s.fromDate);
   const toDate = useUIStore((s) => s.toDate);
   const dateFilter = useUIStore((s) => s.dateFilter);
@@ -60,23 +59,27 @@ export default function SubParameterDrillPage() {
   const setToDate = useUIStore((s) => s.setToDate);
   const setDateFilter = useUIStore((s) => s.setDateFilter);
 
-  /* ✅ IMPORTANT */
-  const [selectedAgent, setSelectedAgent] = useState("All Agents");
-  const [parameterIndex, setParameterIndex] = useState(0);
+  /* ================= STATE ================= */
 
-    const sectionNames = [
-      "Opening",
-      "Communication",
-      "Probing & Resolution",
-      "Process Compliance",
-      "Closure"
-    ];
+  const [selectedAgent, setSelectedAgent] =
+    useState<string>("");
+
+  const [parameterIndex, setParameterIndex] =
+    useState<number>(0);
+
+  const sectionNames = [
+    "Opening",
+    "Communication",
+    "Probing & Resolution",
+    "Process Compliance",
+    "Closure",
+  ];
 
   /* ================= CLIENT ================= */
 
   const {
     data: clients = [],
-    isLoading: clientLoading
+    isLoading: clientLoading,
   } = useQuery<Client[]>({
     queryKey: ["clients", department],
 
@@ -85,13 +88,13 @@ export default function SubParameterDrillPage() {
         await api.get<Client[]>(
           `/clients?department=${department}`
         )
-      ).data
+      ).data,
   });
 
   /* ================= AUTO CLIENT ================= */
 
   useEffect(() => {
-    if (!clientId && clients.length) {
+    if (!clientId && clients.length > 0) {
       setClientId(clients[0].id);
     }
   }, [clients, clientId, setClientId]);
@@ -99,28 +102,28 @@ export default function SubParameterDrillPage() {
   /* ================= DATE FIX ================= */
 
   useEffect(() => {
-    const today = new Date();
+    const currentDate = new Date();
 
     let from = new Date();
     let to = new Date();
 
     if (dateFilter === "Today") {
-      from = today;
-      to = today;
+      from = currentDate;
+      to = currentDate;
     }
 
-   if (dateFilter === "Yesterday") {
+    if (dateFilter === "Yesterday") {
       from = new Date();
-      from.setDate(today.getDate() - 1);
-      to = from;
+      from.setDate(currentDate.getDate() - 1);
+      to = new Date(from);
     }
 
     if (dateFilter === "Last 7 Days") {
-      from.setDate(today.getDate() - 6);
+      from.setDate(currentDate.getDate() - 6);
     }
 
     if (dateFilter === "Last 30 Days") {
-      from.setDate(today.getDate() - 29);
+      from.setDate(currentDate.getDate() - 29);
     }
 
     if (dateFilter !== "Custom Range") {
@@ -130,71 +133,109 @@ export default function SubParameterDrillPage() {
       setFromDate(format(from));
       setToDate(format(to));
     }
-  }, [dateFilter]);
+  }, [
+    dateFilter,
+    setFromDate,
+    setToDate,
+  ]);
 
   /* ================= API ================= */
 
-  const { data, isLoading } = useQuery<ApiResponse>({
+  const {
+    data,
+    isLoading,
+  } = useQuery<ApiResponse>({
     queryKey: [
       "sub-param",
       clientId,
       fromDate,
       toDate,
-      parameterIndex
+      parameterIndex,
     ],
 
     queryFn: async () => {
       const res = await api.get(
-      `/service-dashboard/sub-parameter-drill?client_id=${clientId}&parameter_index=${parameterIndex}&date_from=${fromDate}&date_to=${toDate}`
-    );
+        `/service-dashboard/sub-parameter-drill?client_id=${clientId}&parameter_index=${parameterIndex}&date_from=${fromDate}&date_to=${toDate}`
+      );
 
       return res.data;
     },
 
-    enabled: !!clientId
+    enabled: !!clientId,
   });
 
   /* ================= DATA ================= */
 
   const agents = data?.agent_list || [];
 
-  /* ✅ SHOW ALL AGENTS BY DEFAULT */
-  const agentRows =
-    selectedAgent === "All Agents"
-      ? data?.agents || []
-      : (data?.agents || []).filter(
-          (a) => a.name === selectedAgent
-        );
+  /* ================= AUTO SELECT AGENT ================= */
 
-  /* ✅ SUB PARAM ALSO CHANGE */
-  const subParams =
-  selectedAgent === "All Agents"
-    ? data?.sub_params || []
-    : (() => {
-        const found = (data?.agents || []).find(
-          (a) => a.name === selectedAgent
-        );
+  useEffect(() => {
+    if (agents.length > 0) {
+      setSelectedAgent((currentAgent) => {
+        /*
+         * Keep currently selected agent
+         * if that agent still exists.
+         */
+        if (
+          currentAgent &&
+          agents.includes(currentAgent)
+        ) {
+          return currentAgent;
+        }
 
-        if (!found) return [];
+        /*
+         * Otherwise select first available agent.
+         */
+        return agents[0];
+      });
+    } else {
+      /*
+       * Clear selected agent if
+       * API returns no agents.
+       */
+      setSelectedAgent("");
+    }
+  }, [agents]);
 
-        return (data?.sub_params || []).map((p) => ({
+  /* ================= SELECTED AGENT ROW ================= */
+
+  const agentRows = (data?.agents || []).filter(
+    (agent) => agent.name === selectedAgent
+  );
+
+  /* ================= SELECTED AGENT DATA ================= */
+
+  const selectedAgentData = (
+    data?.agents || []
+  ).find(
+    (agent) => agent.name === selectedAgent
+  );
+
+  /* ================= SUB PARAMETERS ================= */
+
+  const subParams = selectedAgentData
+    ? (data?.sub_params || []).map((p) => {
+        const key = p.label
+          .toLowerCase()
+          .replace(/&/g, "")
+          .replace(/\//g, "")
+          .replace(/ /g, "_");
+
+        return {
           ...p,
           value: safe(
-            found[
-              p.label
-              .toLowerCase()
-              .replace(/&/g, "")
-              .replace(/\//g, "")
-              .replace(/ /g, "_")
-            ]
-          )
-        }));
-      })();
+            selectedAgentData[key]
+          ),
+        };
+      })
+    : [];
 
   /* ================= UI ================= */
 
   return (
     <div className="space-y-5">
+
       <ServiceTabs />
 
       <h1 className="text-xl font-semibold">
@@ -205,27 +246,34 @@ export default function SubParameterDrillPage() {
 
       <div className="bg-white border rounded-xl p-4 flex flex-wrap gap-3">
 
-        {/* CLIENT */}
+        {/* ================= CLIENT ================= */}
 
         <select
           value={clientId ?? ""}
           onChange={(e) =>
-            setClientId(Number(e.target.value))
+            setClientId(
+              Number(e.target.value)
+            )
           }
           className="border h-9 px-2 rounded"
         >
           {!clientId && (
-            <option value="">Select Client</option>
+            <option value="">
+              Select Client
+            </option>
           )}
 
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
+          {clients.map((client) => (
+            <option
+              key={client.id}
+              value={client.id}
+            >
+              {client.name}
             </option>
           ))}
         </select>
 
-        {/* DATE */}
+        {/* ================= DATE ================= */}
 
         <select
           value={dateFilter}
@@ -241,7 +289,7 @@ export default function SubParameterDrillPage() {
           <option>Custom Range</option>
         </select>
 
-        {/* CUSTOM RANGE */}
+        {/* ================= CUSTOM RANGE ================= */}
 
         {dateFilter === "Custom Range" && (
           <>
@@ -250,10 +298,16 @@ export default function SubParameterDrillPage() {
               value={fromDate}
               max={todayDate}
               onChange={(e) => {
-                setFromDate(e.target.value);
+                setFromDate(
+                  e.target.value
+                );
 
-                if (toDate < e.target.value) {
-                  setToDate(e.target.value);
+                if (
+                  toDate < e.target.value
+                ) {
+                  setToDate(
+                    e.target.value
+                  );
                 }
               }}
               className="border h-9 px-2 rounded"
@@ -264,45 +318,75 @@ export default function SubParameterDrillPage() {
               value={toDate}
               min={fromDate}
               max={todayDate}
-              onChange={(e) => setToDate(e.target.value)}
+              onChange={(e) =>
+                setToDate(
+                  e.target.value
+                )
+              }
               className="border h-9 px-2 rounded"
             />
           </>
         )}
 
-        {/* AGENT */}
+        {/* ================= AGENT ================= */}
 
         <select
           value={selectedAgent}
           onChange={(e) =>
-            setSelectedAgent(e.target.value)
+            setSelectedAgent(
+              e.target.value
+            )
           }
           className="border h-9 px-2 rounded min-w-[180px]"
         >
-          <option value="All Agents">
-            All Agents
-          </option>
-
-          {agents.map((a) => (
-            <option key={a} value={a}>
-              {a}
+          {agents.length === 0 ? (
+            <option value="">
+              No Agents
             </option>
-          ))}
+          ) : (
+            agents.map((agent) => (
+              <option
+                key={agent}
+                value={agent}
+              >
+                {agent}
+              </option>
+            ))
+          )}
         </select>
 
+        {/* ================= PARAMETER ================= */}
+
         <select
-  value={parameterIndex}
-  onChange={(e) =>
-    setParameterIndex(Number(e.target.value))
-  }
-  className="border h-9 px-2 rounded"
->
-  <option value={0}>Opening</option>
-  <option value={1}>Communication</option>
-  <option value={2}>Probing & Resolution</option>
-  <option value={3}>Process Compliance</option>
-  <option value={4}>Closure</option>
-</select>
+          value={parameterIndex}
+          onChange={(e) =>
+            setParameterIndex(
+              Number(e.target.value)
+            )
+          }
+          className="border h-9 px-2 rounded"
+        >
+          <option value={0}>
+            Opening
+          </option>
+
+          <option value={1}>
+            Communication
+          </option>
+
+          <option value={2}>
+            Probing & Resolution
+          </option>
+
+          <option value={3}>
+            Process Compliance
+          </option>
+
+          <option value={4}>
+            Closure
+          </option>
+        </select>
+
       </div>
 
       {/* ================= LOADING ================= */}
@@ -313,98 +397,188 @@ export default function SubParameterDrillPage() {
         </div>
       )}
 
-      {/* ================= SUB PARAMS ================= */}
+      {/* ================= NO AGENT ================= */}
 
-      {!isLoading && (
-        <div className="bg-white border rounded-xl p-5 space-y-3">
-          <h2 className="font-semibold">
-              {sectionNames[parameterIndex]}
-            </h2>
+      {!isLoading &&
+        !clientLoading &&
+        !selectedAgent && (
+          <div className="bg-white border rounded-xl p-8 text-center text-gray-400">
+            No agent data found
+          </div>
+        )}
 
-          {subParams.map((p, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3"
-            >
-              <div className="w-56 text-sm">
-                {p.label}
-              </div>
+      {/* ================= SUB PARAMETERS ================= */}
 
-              <div className="flex-1 bg-gray-200 h-2 rounded">
-                <div
-                  className={`h-2 rounded ${getColor(
-                    safe(p.value)
-                  )}`}
-                  style={{
-                    width: `${safe(p.value)}%`
-                  }}
-                />
-              </div>
+      {!isLoading &&
+        selectedAgent && (
+          <div className="bg-white border rounded-xl p-5 space-y-3">
 
-              <div className="w-16 text-sm text-right">
-                {safe(p.value)}%
-              </div>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">
+                {sectionNames[
+                  parameterIndex
+                ]}
+              </h2>
+
+              <span className="text-sm text-gray-500">
+                Agent: {selectedAgent}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+
+            {subParams.length === 0 ? (
+              <div className="py-6 text-center text-gray-400">
+                No sub-parameter data
+              </div>
+            ) : (
+              subParams.map((p, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3"
+                >
+
+                  <div className="w-56 text-sm">
+                    {p.label}
+                  </div>
+
+                  <div className="flex-1 bg-gray-200 h-2 rounded">
+                    <div
+                      className={`h-2 rounded ${getColor(
+                        safe(p.value)
+                      )}`}
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.max(
+                            0,
+                            safe(p.value)
+                          )
+                        )}%`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="w-16 text-sm text-right">
+                    {safe(p.value)}%
+                  </div>
+
+                </div>
+              ))
+            )}
+
+          </div>
+        )}
 
       {/* ================= TABLE ================= */}
 
-      {!isLoading && (
-        <div className="bg-white border rounded-xl p-5">
-          <h3 className="mb-3">Agent view</h3>
+      {!isLoading &&
+        selectedAgent && (
+          <div className="bg-white border rounded-xl p-5">
 
-          <table className="w-full text-sm text-center">
-            <thead className="border-b">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">
+                Agent view
+              </h3>
+
+              <span className="text-sm text-gray-500">
+                {selectedAgent}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+
+              <table className="w-full text-sm text-center">
+
+                <thead className="border-b">
                   <tr>
-                    <th className="text-left">Agent</th>
 
-                    {subParams.map((p, i) => (
-                      <th key={i}>{p.label}</th>
-                    ))}
+                    <th className="text-left">
+                      Agent
+                    </th>
+
+                    {subParams.map(
+                      (p, i) => (
+                        <th key={i}>
+                          {p.label}
+                        </th>
+                      )
+                    )}
+
                   </tr>
                 </thead>
 
-            <tbody>
-              {agentRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={subParams.length + 1}
-                    className="py-6 text-gray-400"
-                  >
-                    No data
-                  </td>
-                </tr>
-              ) : (
-                agentRows.map((a, i) => (
-                  <tr
-                    key={i}
-                    className="border-b"
-                  >
-                    <td className="text-left">
-                      {a.name}
-                    </td>
+                <tbody>
 
-                    {subParams.map((p, idx) => (
-                      <td key={idx}>
-                        {safe(
-                          a[
-                            p.label
-                              .toLowerCase()
-                              .replace(/ /g, "_")
-                          ]
-                        )}
-                        %
+                  {agentRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={
+                          subParams.length + 1
+                        }
+                        className="py-6 text-gray-400"
+                      >
+                        No data
                       </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                    </tr>
+                  ) : (
+                    agentRows.map(
+                      (agent, i) => (
+                        <tr
+                          key={i}
+                          className="border-b hover:bg-gray-50"
+                        >
+
+                          <td className="text-left font-medium">
+                            {agent.name}
+                          </td>
+
+                          {subParams.map(
+                            (p, idx) => {
+
+                              const key =
+                                p.label
+                                  .toLowerCase()
+                                  .replace(
+                                    /&/g,
+                                    ""
+                                  )
+                                  .replace(
+                                    /\//g,
+                                    ""
+                                  )
+                                  .replace(
+                                    / /g,
+                                    "_"
+                                  );
+
+                              return (
+                                <td
+                                  key={idx}
+                                  className="py-2"
+                                >
+                                  {safe(
+                                    agent[key]
+                                  )}
+                                  %
+                                </td>
+                              );
+                            }
+                          )}
+
+                        </tr>
+                      )
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+        )}
+
     </div>
   );
 }
+
