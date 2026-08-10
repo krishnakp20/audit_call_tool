@@ -305,6 +305,8 @@ def service_overview(
                     (a.audit_json or {}).get("sections", {}).get("understanding_resolution", {}).get("score")
                     or
                     (a.audit_json or {}).get("sections", {}).get("probing_resolution", {}).get("score", 0)
+                    or
+                    (a.audit_json or {}).get("sections", {}).get("data_collection_query_handling", {}).get("score", 0)
             )
             for a in audits
         ]), 2),
@@ -314,6 +316,8 @@ def service_overview(
                     (a.audit_json or {}).get("sections", {}).get("understanding_resolution", {}).get("score")
                     or
                     (a.audit_json or {}).get("sections", {}).get("probing_resolution", {}).get("score", 0)
+                    or
+                    (a.audit_json or {}).get("sections", {}).get("data_collection_query_handling", {}).get("score", 0)
             )
             for a in audits
         ]), 2),
@@ -411,6 +415,10 @@ def service_overview(
 
         if missing_closure or incomplete_resolution or not_converted:
             no_closing += 1
+
+    late_opening = round((late_opening / total_calls) * 100, 2)
+    wrong_info = round((wrong_info / total_calls) * 100, 2)
+    no_closing = round((no_closing / total_calls) * 100, 2)
 
     return {
         "cards": {
@@ -582,18 +590,26 @@ def call_audit_log(
 
             "opening": sec_score("opening", 14),
             "understanding": sec_score(
-                    "probing_resolution"
-                    if sections.get("probing_resolution")
-                    else "understanding_resolution",
-                    30
+                "probing_resolution"
+                if sections.get("probing_resolution")
+                else (
+                    "understanding_resolution"
+                    if sections.get("understanding_resolution")
+                    else "data_collection_query_handling"
                 ),
+                30
+            ),
 
-                "resolution": sec_score(
-                    "probing_resolution"
-                    if sections.get("probing_resolution")
-                    else "understanding_resolution",
-                    30
+            "resolution": sec_score(
+                "probing_resolution"
+                if sections.get("probing_resolution")
+                else (
+                    "understanding_resolution"
+                    if sections.get("understanding_resolution")
+                    else "data_collection_query_handling"
                 ),
+                30
+            ),
             "comms": sec_score("communication", 26),
             "control": sec_score("process_compliance", 20),
             "closing": sec_score("closure", 12),
@@ -703,11 +719,11 @@ def agent_scorecard(
 
         agent_map[agent]["metrics"]["Opening"].append(get_score("opening"))
         agent_map[agent]["metrics"]["Understanding"].append(
-            get_score("understanding_resolution") or get_score("probing_resolution")
+            get_score("understanding_resolution") or get_score("probing_resolution") or get_score("data_collection_query_handling")
         )
 
         agent_map[agent]["metrics"]["Resolution"].append(
-            get_score("understanding_resolution") or get_score("probing_resolution")
+            get_score("understanding_resolution") or get_score("probing_resolution") or get_score("data_collection_query_handling")
         )
         agent_map[agent]["metrics"]["Communication"].append(get_score("communication"))
         agent_map[agent]["metrics"]["Control"].append(get_score("process_compliance"))
