@@ -21,7 +21,7 @@ type Row = {
   date: string;
   duration: string;
   score: number;
-  fcr: "Yes" | "No" | "Partial";
+  fcr: "Resolved" | "Not Resolved" | "Partial";
   opening: string;
   understanding: string;
   resolution: string;
@@ -252,9 +252,9 @@ const { data: clients } = useQuery({
 
         <select value={fcr} onChange={(e) => setFcr(e.target.value)} className="border rounded h-9 px-2">
           <option>All FCR</option>
-          <option>Yes</option>
-          <option>No</option>
-          <option>Partial</option>
+            <option>Resolved</option>
+            <option>Not Resolved</option>
+            <option>Partial</option>
         </select>
       </div>
 
