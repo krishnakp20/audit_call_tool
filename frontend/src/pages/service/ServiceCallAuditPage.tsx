@@ -273,7 +273,6 @@ const { data: clients } = useQuery({
                 <th>FCR</th>
                 <th>Opening</th>
                 <th>Understanding</th>
-                <th>Resolution</th>
                 <th>Comms</th>
                 <th>Control</th>
                 <th>Closing</th>
@@ -315,7 +314,6 @@ const { data: clients } = useQuery({
 
                     <td>{r.opening}</td>
                     <td>{r.understanding}</td>
-                    <td>{r.resolution}</td>
                     <td>{r.comms}</td>
                     <td>{r.control}</td>
                     <td>{r.closing}</td>

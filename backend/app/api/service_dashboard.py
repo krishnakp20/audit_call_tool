@@ -330,13 +330,23 @@ def service_overview(
 
     # ================= PARAMETER SCORES =================
 
-    def section_avg(section):
+    def section_avg(section, fallback_section=None):
         values = []
+
         for a in audits:
             if not a.audit_json:
                 continue
-            score = a.audit_json.get("sections", {}).get(section, {}).get("score", 0)
+
+            sections = a.audit_json.get("sections", {})
+
+            section_data = sections.get(section)
+
+            if not section_data and fallback_section:
+                section_data = sections.get(fallback_section)
+
+            score = (section_data or {}).get("score", 0)
             values.append(score)
+
         return round(mean(values), 2) if values else 0
 
     parameter_scores = {
@@ -363,8 +373,8 @@ def service_overview(
             for a in audits
         ]), 2),
         "communication": section_avg("communication"),
-        "control": section_avg("process_compliance"),
-        "process": section_avg("process_compliance"),
+        "control": section_avg("process_compliance", "process"),
+        "process": section_avg("process_compliance", "process"),
         "closing": section_avg("closure"),
     }
 
@@ -596,8 +606,8 @@ def call_audit_log(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
+    # ================= BASE QUERY =================
 
-    # ✅ BASE QUERY
     query = (
         db.query(CallAudit, CallLog)
         .join(CallLog, CallAudit.call_id == CallLog.call_id)
@@ -608,10 +618,12 @@ def call_audit_log(
         )
     )
 
-    # ✅ TOTAL COUNT (IMPORTANT)
+    # ================= TOTAL COUNT =================
+
     total = query.count()
 
-    # ✅ PAGINATION
+    # ================= PAGINATION =================
+
     audits = (
         query
         .order_by(CallAudit.created_at.desc())
@@ -628,90 +640,176 @@ def call_audit_log(
         "Partially Booked",
         "Partial Conversion",
         "Conversion",
-        "Yes"
+        "Yes",
     ]
 
     response = []
 
-
     for a, call in audits:
+
         data = a.audit_json or {}
         sections = data.get("sections", {})
 
-        def sec_score(name, total):
-            val = sections.get(name, {}).get("score", 0)
-            return f"{val}/{total}"
+        # ================= SECTION SCORE =================
+
+        def get_section_score(name):
+            return float(
+                sections.get(name, {}).get("score", 0) or 0
+            )
+
+        # ================= SCORES =================
+
+        opening_score = min(
+            get_section_score("opening"),
+            14
+        )
+
+        probing_section = (
+            "probing_resolution"
+            if sections.get("probing_resolution")
+            else (
+                "understanding_resolution"
+                if sections.get("understanding_resolution")
+                else "data_collection_query_handling"
+            )
+        )
+
+        understanding_score = min(
+            get_section_score(probing_section),
+            30
+        )
+
+        communication_score = min(
+            get_section_score("communication"),
+            26
+        )
+
+        process_score = min(
+            get_section_score("process_compliance"),
+            20
+        )
+
+        # IMPORTANT:
+        # Closing maximum is now 10, not 12
+        closure_score = min(
+            get_section_score("closure"),
+            10
+        )
+
+        # ================= FINAL SCORE =================
+        #
+        # Opening       = 14
+        # Understanding = 30
+        # Communication = 26
+        # Control       = 20
+        # Closing       = 10
+        #
+        # TOTAL         = 100
+
+        final_score = round(
+            opening_score
+            + understanding_score
+            + communication_score
+            + process_score
+            + closure_score,
+            1
+        )
+
+        # Safety check: score can NEVER exceed 100
+        final_score = min(final_score, 100.0)
 
         # ================= FCR STATUS =================
 
         if data.get("fcr_evaluation"):
-            fcr_percentage = data.get("fcr_evaluation", {}).get("percentage", 0)
+
+            fcr_percentage = float(
+                data.get("fcr_evaluation", {}).get(
+                    "percentage", 0
+                ) or 0
+            )
 
             if fcr_percentage >= 100:
                 fcr_status = "Resolved"
+
             elif fcr_percentage > 0:
                 fcr_status = "Partial"
+
             else:
                 fcr_status = "Not Resolved"
 
         else:
+
             fcr_success = (
-                    data.get("call_outcome") in SUCCESS_OUTCOMES
-                    or
-                    data.get("conversion_status") in SUCCESS_OUTCOMES
-                    or
-                    str(
-                        data.get("conversion_audit", {})
-                        .get("booking_done", "")
-                    ).lower() in ["true", "yes", "booked", "1"]
-                    or
-                    str(
-                        data.get("query_audit", {})
-                        .get("request_raised", "")
-                    ).lower() == "yes"
+                data.get("call_outcome") in SUCCESS_OUTCOMES
+                or
+                data.get("conversion_status") in SUCCESS_OUTCOMES
+                or
+                str(
+                    data.get("conversion_audit", {})
+                    .get("booking_done", "")
+                ).lower()
+                in ["true", "yes", "booked", "1"]
+                or
+                str(
+                    data.get("query_audit", {})
+                    .get("request_raised", "")
+                ).lower()
+                == "yes"
             )
 
-            fcr_status = "Resolved" if fcr_success else "Not Resolved"
+            fcr_status = (
+                "Resolved"
+                if fcr_success
+                else "Not Resolved"
+            )
+
+        # ================= UNCLEAR =================
+
+        unclear_percentage = (
+            len(
+                data.get(
+                    "areas_for_improvement",
+                    []
+                )
+            ) * 5
+        )
+
+        # ================= RESPONSE =================
 
         response.append({
             "id": f"CS-{a.id}",
             "agent": a.agent_id or "Unknown",
             "client_id": a.client_id,
             "date": str(a.created_at.date()),
-            "duration": call.duration,  # update if available
-            "score": a.total_score or 0,
+            "duration": call.duration,
+
+            "score": final_score,
+
             "fcr": fcr_status,
 
-            "opening": sec_score("opening", 14),
-            "understanding": sec_score(
-                "probing_resolution"
-                if sections.get("probing_resolution")
-                else (
-                    "understanding_resolution"
-                    if sections.get("understanding_resolution")
-                    else "data_collection_query_handling"
-                ),
-                30
+            "opening": f"{opening_score:.1f}/14",
+
+            "understanding": (
+                f"{understanding_score:.1f}/30"
             ),
 
-            "resolution": sec_score(
-                "probing_resolution"
-                if sections.get("probing_resolution")
-                else (
-                    "understanding_resolution"
-                    if sections.get("understanding_resolution")
-                    else "data_collection_query_handling"
-                ),
-                30
+            "comms": (
+                f"{communication_score:.1f}/26"
             ),
-            "comms": sec_score("communication", 26),
-            "control": sec_score("process_compliance", 20),
-            "closing": sec_score("closure", 12),
 
-            "unclear": f"{len(data.get('areas_for_improvement', [])) * 5}%"
+            "control": (
+                f"{process_score:.1f}/20"
+            ),
+
+            "closing": (
+                f"{closure_score:.1f}/10"
+            ),
+
+            "unclear": f"{unclear_percentage}%"
         })
 
-    # ✅ FINAL RESPONSE
+    # ================= FINAL RESPONSE =================
+
     return {
         "data": response,
         "total": total,
@@ -808,8 +906,13 @@ def agent_scorecard(
         agent_map[agent]["fcr"].append(1 if is_fcr else 0)
 
         # metrics mapping
-        def get_score(section):
-            return sections.get(section, {}).get("score", 0)
+        def get_score(section, fallback=None):
+            section_data = sections.get(section)
+
+            if not section_data and fallback:
+                section_data = sections.get(fallback)
+
+            return (section_data or {}).get("score", 0)
 
         agent_map[agent]["metrics"]["Opening"].append(get_score("opening"))
         agent_map[agent]["metrics"]["Understanding"].append(
@@ -820,8 +923,8 @@ def agent_scorecard(
             get_score("understanding_resolution") or get_score("probing_resolution") or get_score("data_collection_query_handling")
         )
         agent_map[agent]["metrics"]["Communication"].append(get_score("communication"))
-        agent_map[agent]["metrics"]["Control"].append(get_score("process_compliance"))
-        agent_map[agent]["metrics"]["Adherence"].append(get_score("process_compliance"))
+        agent_map[agent]["metrics"]["Control"].append(get_score("process_compliance" , "process"))
+        agent_map[agent]["metrics"]["Adherence"].append(get_score("process_compliance" , "process"))
         agent_map[agent]["metrics"]["Closing"].append(get_score("closure"))
 
     response = []
@@ -971,6 +1074,43 @@ def get_score(params, key):
 
     return 0
 
+
+def get_fcr_status(data):
+    # 1. fcr_evaluation.status
+    fcr = data.get("fcr_evaluation")
+    if isinstance(fcr, dict):
+        status = fcr.get("status")
+        if status:
+            return status
+
+    # 2. registration_evaluation.status
+    registration = data.get("registration_evaluation")
+    if isinstance(registration, dict):
+        status = registration.get("status")
+        if status:
+            return status
+
+    # 3. sentiment.conversion_status
+    sentiment = data.get("sentiment")
+    if isinstance(sentiment, dict):
+        status = sentiment.get("conversion_status")
+        if status:
+            return status
+
+    # 4. Direct conversion_status
+    status = data.get("conversion_status")
+    if status:
+        return status
+
+    # 5. query_audit
+    query_audit = data.get("query_audit")
+    if isinstance(query_audit, dict):
+        if query_audit.get("request_raised") == "yes":
+            return "Full"
+
+    return None
+
+
 @router.get("/process-insights")
 def process_insights(
     client_id: int,
@@ -1040,12 +1180,18 @@ def process_insights(
             drivers_counter["Customer re-explained issue"] += 1
 
         # ---------- FCR ----------
-        status = data.get("conversion_status", "Partial")
 
-        if "Full" in status:
-            fcr_counter["FCR achieved"] += 1
-        elif "Partial" in status:
-            fcr_counter["Partial resolution"] += 1
+        status = get_fcr_status(data)
+
+        if status:
+            status = str(status).lower()
+
+            if "full" in status:
+                fcr_counter["FCR achieved"] += 1
+            elif "partial" in status:
+                fcr_counter["Partial resolution"] += 1
+            else:
+                fcr_counter["Not resolved"] += 1
         else:
             fcr_counter["Not resolved"] += 1
 
@@ -1134,7 +1280,6 @@ def get_agent_name(audit):
         or "Unknown"
     )
 
-
 @router.get("/red-flags")
 def red_flags(
     client_id: int,
@@ -1172,82 +1317,133 @@ def red_flags(
 
         score = data.get("percentage", 0)
 
-        flag = None
-        impact = ""
-        note = ""
+        # Do not show perfect calls as red flags
+        if score >= 100:
+            continue
 
         # ================= CLOSURE =================
         closure = sections.get("closure", {})
-        closure_params = closure.get("parameters", {})
-
-        if get_score(closure_params, "summary_given") == 0:
-            flag = "No resolution"
-            impact = "-10 pts"
-            note = "Resolution incomplete"
-            critical_fail += 1
+        closure_params = (
+            closure.get("parameters", {})
+            if isinstance(closure, dict)
+            else {}
+        )
 
         # ================= COMMUNICATION =================
-        comm = sections.get("communication", {}).get("parameters", {})
+        comm_section = sections.get("communication", {})
+        comm = (
+            comm_section.get("parameters", {})
+            if isinstance(comm_section, dict)
+            else {}
+        )
 
+        # ================= PROBING / UNDERSTANDING =================
+        probing_section = sections.get("probing_resolution", {})
+
+        probing = (
+            probing_section.get("parameters", {})
+            if isinstance(probing_section, dict)
+            else {}
+        )
+
+        if not probing:
+            understanding_section = sections.get(
+                "understanding_resolution",
+                {}
+            )
+
+            probing = (
+                understanding_section.get("parameters", {})
+                if isinstance(understanding_section, dict)
+                else {}
+            )
+
+        # ================= WRONG INFORMATION =================
+        process = probing
+
+        # ================= FLAGS =================
+        flags = []
+
+        # ---------- CLOSURE ----------
+        if get_score(closure_params, "summary_given") == 0:
+            flags.append({
+                "flag": "No resolution",
+                "impact": "Major impact",
+                "note": "Resolution incomplete"
+            })
+            critical_fail += 1
+
+        # ---------- COMMUNICATION ----------
         if get_score(comm, "professionalism") == 0:
-            flag = "Rude / unprofessional"
-            impact = "Full zero"
-            note = "Agent used unprofessional tone"
+            flags.append({
+                "flag": "Rude / unprofessional",
+                "impact": "Critical impact",
+                "note": "Agent used unprofessional tone"
+            })
             rude += 1
 
-        # ================= PROBING =================
-        probing = sections.get("probing_resolution", {}).get("parameters", {})
-
-        repeat_flag = False
+        # ---------- PREMATURE SOLUTION ----------
+        premature_flag = False
 
         if get_score(probing, "relevant_probing") == 0:
-            flag = "Premature solution"
-            impact = "-6 pts"
-            note = "Solution given before probing"
-            repeat_flag = True
+            flags.append({
+                "flag": "Premature solution",
+                "impact": "Moderate impact",
+                "note": "Solution given before probing"
+            })
+            premature_flag = True
+
+        # ---------- REPEAT ISSUE ----------
+        repeat_flag = False
 
         if get_score(probing, "issue_understanding") == 0:
-            flag = "Repeat issue"
-            impact = "-8 pts"
-            note = "Customer had to repeat issue"
+            flags.append({
+                "flag": "Repeat issue",
+                "impact": "Major impact",
+                "note": "Customer had to repeat issue"
+            })
             repeat_flag = True
 
         if repeat_flag:
             repeat_risk += 1
 
-        # ================= PROCESS =================
-        process = sections.get("probing_resolution", {}).get("parameters", {})
+        # ---------- WRONG INFORMATION ----------
+        wrong_info_flag = False
 
-        if get_score(process, "no_misinformation") == 0:
-            flag = "Wrong info"
-            impact = "Param zeroed"
-            note = "Incorrect info given to customer"
+        if "no_misinformation" in process:
+            wrong_info_flag = (
+                get_score(process, "no_misinformation") == 0
+            )
+
+        elif "no_wrong_info" in process:
+            wrong_info_flag = (
+                get_score(process, "no_wrong_info") == 0
+            )
+
+        if wrong_info_flag:
+            flags.append({
+                "flag": "Wrong info",
+                "impact": "Critical impact",
+                "note": "Incorrect info given to customer"
+            })
             wrong_info += 1
 
-        # ✅ If no flag skip row
+        # ================= ADD ROWS =================
+        for item in flags:
+            rows.append({
+                "id": call_id,
+                "agent": agent_name,
+                "flag": item["flag"],
+                "score": score,
+                "impact": item["impact"],
+                "note": item["note"]
+            })
 
-
-        if not flag:
-            continue
-
-        if score >= 75:
-            flag = "Good Call"
-        elif score >= 50:
-            flag = "Average Call"
-
-        rows.append({
-            "id": call_id,
-            "agent": agent_name,
-            "flag": flag,
-            "score": score,
-            "impact": impact,
-            "note": note
-        })
-
+    # ================= PERCENTAGE =================
     total = len(audits)
 
     def percent(x):
-        return int((x / total) * 100) if total else 0
+        return round((x / total) * 100, 2) if total else 0
 
     # ================= TOP CARDS =================
     top_cards = [
@@ -1281,7 +1477,6 @@ def red_flags(
         "top_cards": top_cards,
         "rows": rows
     }
-
 
 
 @router.get("/training-priorities")

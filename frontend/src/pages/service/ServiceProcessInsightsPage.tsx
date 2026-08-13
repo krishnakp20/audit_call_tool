@@ -107,7 +107,23 @@ const { data: clients } = useQuery({
 
   const topCards = data?.top_cards || [];
   const failures = data?.failures || [];
-  const fcr = data?.fcr || [];
+  const fcr = [
+  {
+    label: "FCR achieved",
+    value: data?.fcr?.find((x) => x.label === "FCR achieved")?.value || 0,
+    color: "bg-green-600",
+  },
+  {
+    label: "Partial resolution",
+    value: data?.fcr?.find((x) => x.label === "Partial resolution")?.value || 0,
+    color: "bg-orange-500",
+  },
+  {
+    label: "Not resolved",
+    value: data?.fcr?.find((x) => x.label === "Not resolved")?.value || 0,
+    color: "bg-red-500",
+  },
+];
   const drivers = data?.drivers || [];
 
   /* ================= UI ================= */
