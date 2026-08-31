@@ -974,20 +974,74 @@ def sub_parameter_drill(
     ).all()
 
     if not audits:
-        return {"sub_params": [], "agents": [], "agent_list": []}
+        return {
+            "sub_params": [],
+            "agents": [],
+            "agent_list": []
+        }
 
     # ================= HELPER =================
 
     def get_param(section, key):
         param = section.get("parameters", {}).get(key, 0)
 
-        # ✅ CASE 1: dict
-        if isinstance(param, dict):
-            return param.get("score", 0)
+        # ==========================================
+        # NEW JSON FORMAT
+        # Example:
+        # {
+        #     "score": 2,
+        #     "max_score": 6
+        # }
+        # ==========================================
 
-        # ✅ CASE 2: int
+        if isinstance(param, dict):
+
+            score = param.get("score", 0)
+            max_score = param.get("max_score")
+
+            # Client 6 / JSON having max_score
+            if max_score is not None:
+
+                try:
+                    score = float(score)
+                    max_score = float(max_score)
+
+                    if max_score > 0:
+                        return min(
+                            int((score / max_score) * 100),
+                            100
+                        )
+
+                except (TypeError, ValueError):
+                    return 0
+
+                return 0
+
+            # ==========================================
+            # OLD JSON FORMAT
+            # No max_score
+            # Keep existing behavior
+            # ==========================================
+
+            try:
+                return min(
+                    int(float(score) * 50),
+                    100
+                )
+            except (TypeError, ValueError):
+                return 0
+
+        # ==========================================
+        # OLD FORMAT
+        # Example:
+        # "parameter": 2
+        # ==========================================
+
         if isinstance(param, (int, float)):
-            return param
+            return min(
+                int(param * 50),
+                100
+            )
 
         return 0
 
@@ -1006,9 +1060,13 @@ def sub_parameter_drill(
         4: "closure",
     }
 
-    section_name = SECTION_MAP.get(parameter_index, "opening")
+    section_name = SECTION_MAP.get(
+        parameter_index,
+        "opening"
+    )
 
     for a in audits:
+
         data = a.audit_json or {}
 
         agent_name = a.agent_id or "Unknown"
@@ -1016,50 +1074,128 @@ def sub_parameter_drill(
         if agent and agent != agent_name:
             continue
 
-        section = data.get("sections", {}).get(section_name, {})
+        sections = data.get("sections", {})
 
-        for key, value in section.get("parameters", {}).items():
-            score = get_param(section, key) * 50
+        # ==================================================
+        # NORMAL CLIENTS
+        # ==================================================
 
-            agent_scores[agent_name][key].append(score)
+        section = sections.get(
+            section_name,
+            {}
+        )
+
+        # ==================================================
+        # CLIENT 6 / DIFFERENT SECTION NAMES
+        #
+        # probing_resolution
+        #       -> understanding_resolution
+        #
+        # process_compliance
+        #       -> process
+        # ==================================================
+
+        if not section:
+
+            if parameter_index == 2:
+                section = sections.get(
+                    "understanding_resolution",
+                    {}
+                )
+
+            elif parameter_index == 3:
+                section = sections.get(
+                    "process",
+                    {}
+                )
+
+        # ==================================================
+        # PARAMETERS
+        # ==================================================
+
+        for key, value in section.get(
+            "parameters",
+            {}
+        ).items():
+
+            # IMPORTANT:
+            # get_param() already returns percentage
+            score = get_param(
+                section,
+                key
+            )
+
+            # Extra safety: never > 100
+            score = min(
+                score,
+                100
+            )
+
+            agent_scores[
+                agent_name
+            ][key].append(score)
 
     # ================= AGENT TABLE =================
 
     agent_rows = []
 
     for name, vals in agent_scores.items():
-        row = {"name": name}
+
+        row = {
+            "name": name
+        }
 
         for key, scores in vals.items():
-            row[key] = avg(scores)
+
+            row[key] = min(
+                avg(scores),
+                100
+            )
 
         agent_rows.append(row)
 
-    # ================= SUB PARAM (SELECTED AGENT) =================
+    # ================= SUB PARAM =================
 
-    selected_agent = agent or list(agent_scores.keys())[0]
+    if agent:
+        selected_agent = agent
+    else:
+        selected_agent = (
+            list(agent_scores.keys())[0]
+            if agent_scores
+            else None
+        )
 
     sub_params = []
 
     if selected_agent in agent_scores:
+
         vals = agent_scores[selected_agent]
 
-        sub_params = []
-
         for key, scores in vals.items():
+
             sub_params.append(
                 {
-                    "label": key.replace("_", " ").title(),
-                    "value": avg(scores)
+                    "label": key.replace(
+                        "_",
+                        " "
+                    ).title(),
+
+                    "value": min(
+                        avg(scores),
+                        100
+                    )
                 }
             )
+
+    # ================= RESPONSE =================
 
     return {
         "sub_params": sub_params,
         "agents": agent_rows,
-        "agent_list": list(agent_scores.keys())
+        "agent_list": list(
+            agent_scores.keys()
+        )
     }
-
 
 def get_score(params, key):
     val = params.get(key, 0)
