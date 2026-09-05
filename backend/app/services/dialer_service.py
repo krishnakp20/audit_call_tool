@@ -202,15 +202,40 @@ def fetch_calls_for_client(db: Session, client: Client) -> int:
 
         seen.add(row["call_id"])
 
-        try:
-            stmt = insert(CallLog).values(client_id=client.id, **row).prefix_with("IGNORE")
-            db.execute(stmt)
+        # try:
+        #     stmt = insert(CallLog).values(client_id=client.id, **row).prefix_with("IGNORE")
+        #     db.execute(stmt)
+        #
+        #     today_counts[agent] = agent_today + 1
+        #     total_today += 1
+        #     inserted += 1
+        #
+        #     print(f"✅ {row['call_id']} | {agent} ({today_counts[agent]})")
+        #
+        # except Exception as e:
+        #     print(f"❌ Insert error: {e}")
 
-            today_counts[agent] = agent_today + 1
+        try:
+            stmt = insert(CallLog).values(
+                client_id=client.id,
+                **row
+            ).prefix_with("IGNORE")
+
+            result = db.execute(stmt)
+
+            # Only count if actually inserted
+            if result.rowcount == 0:
+                print(f"⚠️ Already exists: {row['call_id']}")
+                continue
+
+            today_counts[agent] = today_counts.get(agent, 0) + 1
             total_today += 1
             inserted += 1
 
-            print(f"✅ {row['call_id']} | {agent} ({today_counts[agent]})")
+            print(
+                f"✅ {row['call_id']} | "
+                f"{agent} ({today_counts[agent]})"
+            )
 
         except Exception as e:
             print(f"❌ Insert error: {e}")
