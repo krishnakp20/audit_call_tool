@@ -186,10 +186,24 @@ def fetch_calls_for_client(db: Session, client: Client) -> int:
         if settings.agents and agent not in settings.agents:
             continue
 
+        # agent_today = today_counts.get(agent, 0)
+        #
+        # # ❌ Per agent limit
+        # if settings.audit_calls_per_agent and agent_today >= settings.audit_calls_per_agent:
+        #     continue
+
         agent_today = today_counts.get(agent, 0)
 
-        # ❌ Per agent limit
+        # Check actual DB duplicate first
+        if db.query(CallLog.id).filter(
+                CallLog.client_id == client.id,
+                CallLog.call_id == row["call_id"]
+        ).first():
+            print(f"⚠️ Already exists: {row['call_id']}")
+            continue
+
         if settings.audit_calls_per_agent and agent_today >= settings.audit_calls_per_agent:
+            print(f"⛔ Agent limit reached: {agent} {agent_today}")
             continue
 
         # ❌ Total daily limit
