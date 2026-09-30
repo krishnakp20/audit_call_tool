@@ -41,12 +41,17 @@ class Settings(BaseSettings):
     stt_model: str = Field(default="nova", alias="STT_MODEL")
     stt_language: str = Field(default="hi-Latn", alias="STT_LANGUAGE")
 
+    # Third-party transcription API (upload -> check-status -> get-output)
+    stt_api_base_url: str = Field(default="http://192.168.11.243:8030", alias="STT_API_BASE_URL")
+
     # LLM / OpenAI
     llm_api_url: str = Field(default="https://llm.example.com/audit", alias="LLM_API_URL")
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
     llm_mock_enabled: bool = Field(default=False, alias="LLM_MOCK_ENABLED")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
-    openai_model: str = Field(default="gpt-4o", alias="OPENAI_MODEL")
+    openai_model: str = Field(default="", alias="OPENAI_MODEL")
+    # openai_model: str = Field(default="gpt-4o", alias="OPENAI_MODEL")
+    openai_base_url: str = Field(default="", alias="  ")
 
     sql_db_url2: str = Field(default="", alias="SQL_DB_URL2")
     sql_db_url3: str = Field(default="", alias="SQL_DB_URL3")

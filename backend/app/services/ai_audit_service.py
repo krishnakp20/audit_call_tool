@@ -31,8 +31,11 @@ def _extract_json(content: str) -> dict[str, Any]:
         return {}
 
 
-def _run_openai_chat_sync(prompt: str, transcript: str, api_key: str, model: str) -> dict[str, Any]:
-    client = OpenAI(api_key=api_key)
+def _run_openai_chat_sync(prompt: str, transcript: str, api_key: str, model: str, base_url: str = "") -> dict[str, Any]:
+    client_kwargs: dict[str, Any] = {"api_key": api_key}
+    if base_url:
+        client_kwargs["base_url"] = base_url
+    client = OpenAI(**client_kwargs)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -97,7 +100,7 @@ async def run_ai_audit(prompt: str, transcript: str, voice_mail: bool = False) -
 
     # 2) Fallback to OpenAI direct API when key present in .env.
     if openai_key:
-        raw = await asyncio.to_thread(_run_openai_chat_sync, prompt, transcript, openai_key, settings.openai_model)
+        raw = await asyncio.to_thread(_run_openai_chat_sync, prompt, transcript, openai_key, settings.openai_model, settings.openai_base_url)
         return _normalize_audit_json(raw)
 
     # 3) Optional mock fallback (explicitly enabled).
