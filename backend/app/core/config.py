@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     openai_model: str = Field(default="", alias="OPENAI_MODEL")
     # openai_model: str = Field(default="gpt-4o", alias="OPENAI_MODEL")
-    openai_base_url: str = Field(default="", alias="  ")
+    openai_base_url: str = Field(default="", alias="OPENAI_BASE_URL")
 
     sql_db_url2: str = Field(default="", alias="SQL_DB_URL2")
     sql_db_url3: str = Field(default="", alias="SQL_DB_URL3")
