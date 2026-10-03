@@ -353,22 +353,42 @@ def service_overview(
         "opening": section_avg("opening"),
         "understanding": round(mean([
             (
-                    (a.audit_json or {}).get("sections", {}).get("understanding_resolution", {}).get("score")
-                    or
-                    (a.audit_json or {}).get("sections", {}).get("probing_resolution", {}).get("score", 0)
-                    or
-                    (a.audit_json or {}).get("sections", {}).get("data_collection_query_handling", {}).get("score", 0)
+                    (a.audit_json or {}).get("sections", {}).get("understanding")
+                    or (a.audit_json or {}).get("sections", {}).get("call_understanding")
+                    or (a.audit_json or {}).get("sections", {}).get("understanding_resolution", {}).get("score")
+                    if (a.audit_json or {}).get("sections", {}).get("understanding_resolution") is not None
+                    else None
+                    or (
+                        lambda pr: (
+                            (pr or {}).get("parameters", {}).get("issue_understanding", {}).get("score", 0)
+                            + (pr or {}).get("parameters", {}).get("relevant_probing", {}).get("score", 0)
+                            + (pr or {}).get("parameters", {}).get("mandatory_details_collected", {}).get("score", 0)
+                        )
+                    )((a.audit_json or {}).get("sections", {}).get("probing_resolution"))
+                    or (a.audit_json or {}).get("sections", {}).get("probing_resolution", {}).get("score", 0)
+                    or (a.audit_json or {}).get("sections", {}).get("data_collection_query_handling", {}).get("score", 0)
             )
             for a in audits
         ]), 2),
 
         "resolution": round(mean([
             (
-                    (a.audit_json or {}).get("sections", {}).get("understanding_resolution", {}).get("score")
-                    or
-                    (a.audit_json or {}).get("sections", {}).get("probing_resolution", {}).get("score", 0)
-                    or
-                    (a.audit_json or {}).get("sections", {}).get("data_collection_query_handling", {}).get("score", 0)
+                    (a.audit_json or {}).get("sections", {}).get("resolution")
+                    or (a.audit_json or {}).get("sections", {}).get("call_resolution")
+                    or (a.audit_json or {}).get("sections", {}).get("problem_resolution")
+                    or (
+                        lambda pr: (
+                            (pr or {}).get("parameters", {}).get("solution_orientation", {}).get("score", 0)
+                            + (pr or {}).get("parameters", {}).get("steps_explained", {}).get("score", 0)
+                            + (pr or {}).get("parameters", {}).get("ownership_taken", {}).get("score", 0)
+                            + (pr or {}).get("parameters", {}).get("handling_objections", {}).get("score", 0)
+                            + (pr or {}).get("parameters", {}).get("no_misinformation", {}).get("score", 0)
+                            + (pr or {}).get("parameters", {}).get("correct_information_given", {}).get("score", 0)
+                            + (pr or {}).get("parameters", {}).get("escalation_when_required", {}).get("score", 0)
+                            + (pr or {}).get("parameters", {}).get("transparency", {}).get("score", 0)
+                        )
+                    )((a.audit_json or {}).get("sections", {}).get("probing_resolution"))
+                    or 0
             )
             for a in audits
         ]), 2),
@@ -914,13 +934,45 @@ def agent_scorecard(
 
             return (section_data or {}).get("score", 0)
 
+        def get_pr_param_sum(*param_names):
+            pr_sec = sections.get("probing_resolution") or {}
+            params = pr_sec.get("parameters") or {}
+            total = 0
+            for p in param_names:
+                total += (params.get(p) or {}).get("score", 0)
+            return total
+
         agent_map[agent]["metrics"]["Opening"].append(get_score("opening"))
+        
+        # Understanding
         agent_map[agent]["metrics"]["Understanding"].append(
-            get_score("understanding_resolution") or get_score("probing_resolution") or get_score("data_collection_query_handling")
+            get_score("understanding")
+            or get_score("call_understanding")
+            or get_score("understanding_resolution")
+            or get_pr_param_sum(
+                "issue_understanding",
+                "relevant_probing",
+                "mandatory_details_collected"
+            )
+            or get_score("probing_resolution")
         )
 
+        # Resolution
         agent_map[agent]["metrics"]["Resolution"].append(
-            get_score("understanding_resolution") or get_score("probing_resolution") or get_score("data_collection_query_handling")
+            get_score("resolution")
+            or get_score("call_resolution")
+            or get_score("problem_resolution")
+            or get_pr_param_sum(
+                "solution_orientation",
+                "steps_explained",
+                "ownership_taken",
+                "handling_objections",
+                "no_misinformation",
+                "correct_information_given",
+                "escalation_when_required",
+                "transparency"
+            )
+            or 0
         )
         agent_map[agent]["metrics"]["Communication"].append(get_score("communication"))
         agent_map[agent]["metrics"]["Control"].append(get_score("process_compliance" , "process"))
