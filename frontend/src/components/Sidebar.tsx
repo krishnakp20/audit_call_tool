@@ -6,7 +6,8 @@ import {
   ScrollText,
   FileAudio2,
   Sliders,
-  Webhook
+  Webhook,
+  Table
 } from "lucide-react";
 
 import { departmentStorage } from "@/services/department";
@@ -45,6 +46,11 @@ const items = [
           to: "/clients",
           label: "Clients",
           icon: Users
+        },
+        {
+          to: "/call-details",
+          label: "Call Details",
+          icon: Table
         }
       ]
     : []),

@@ -28,6 +28,7 @@ import ServiceWeeklyReportPage from "@/pages/service/ServiceWeeklyReportPage";
 import ServiceTrainingPrioritiesPage from "@/pages/service/ServiceTrainingPrioritiesPage";
 import DepartmentModal from "@/components/DepartmentModal";
 import WebhookPage from "@/pages/WebhookPage";
+import CallDetailsPage from "@/pages/CallDetailsPage";
 
 import { departmentStorage } from "@/services/department";
 
@@ -95,6 +96,13 @@ export default function App() {
         />
         <Route path="prompts" element={<PromptBuilderPage />} />
         <Route path="calls" element={<CallLogsPage />} />
+        <Route path="call-details" element={
+          isSuperuser ? (
+            <CallDetailsPage />
+          ) : (
+            <Navigate to={clientHome} replace />
+          )
+        } />
         <Route path="audit" element={<AuditDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="webhook" element={<WebhookPage />} />
