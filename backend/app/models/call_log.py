@@ -19,6 +19,7 @@ class CallLog(Base, TimestampMixin):
     recording_path: Mapped[str] = mapped_column(String(1024), nullable=False)
     transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
     voice_mail: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    phone_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     client = relationship("Client", back_populates="call_logs")
     audit = relationship("CallAudit", back_populates="call", uselist=False, cascade="all, delete-orphan")

@@ -15,6 +15,7 @@ class CallLogOut(BaseModel):
     transcript: str | None
     created_at: datetime
     voice_mail: bool
+    phone_number: str | None
 
     class Config:
         from_attributes = True

@@ -66,6 +66,7 @@ def _fetch_dialer_payload(client: Client, settings: Setting) -> List[Dict[str, A
                 vc.call_date,
                 vc.lead_id,
                 r.length_in_sec,
+                vc.phone_number,
                 IFNULL(
                     REPLACE(
                         r.location,
@@ -117,6 +118,7 @@ def _fetch_dialer_payload(client: Client, settings: Setting) -> List[Dict[str, A
                         "end_time": call_time + timedelta(seconds=duration),
                         "duration": duration,
                         "recording_path": row["file_url"] or "",
+                        "phone_number": row["phone_number"] or "",
                     }
                 )
 
