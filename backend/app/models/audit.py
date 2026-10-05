@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Boolean, Float, ForeignKey, String
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -18,6 +18,8 @@ class CallAudit(Base, TimestampMixin):
     percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     ranking: Mapped[str] = mapped_column(String(50), nullable=False, default="N/A")
     fatal_flag: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    total_tokens: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True)
+    cost: Mapped[float | None] = mapped_column(Numeric(12, 8), default=0, nullable=True)
 
     client = relationship("Client", back_populates="audits")
     call = relationship("CallLog", back_populates="audit")

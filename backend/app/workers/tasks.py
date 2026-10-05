@@ -68,6 +68,8 @@ def audit_task(self) -> dict:
                 continue
             audit_json = asyncio.run(run_ai_audit(prompt.prompt, call.transcript or ""))
             total_score, percentage, ranking, fatal_flag = derive_scoring(audit_json)
+            usage = audit_json.pop("_usage", None) or {}
+            print("####", usage, "####")
             db.add(
                 CallAudit(
                     call_id=call.call_id,
@@ -78,6 +80,8 @@ def audit_task(self) -> dict:
                     percentage=percentage,
                     ranking=ranking,
                     fatal_flag=fatal_flag,
+                    total_tokens=usage.get("total_tokens"),
+                    cost=usage.get("cost"),
                 )
             )
             processed += 1

@@ -45,7 +45,23 @@ def _run_openai_chat_sync(prompt: str, transcript: str, api_key: str, model: str
         temperature=0,
     )
     content = (response.choices[0].message.content or "").strip()
-    return _extract_json(content)
+    audit = _extract_json(content)
+
+    # usage.cost is an OpenRouter extension, not part of the OpenAI spec, so read
+    # defensively via model_dump().get() — absent fields yield None instead of raising.
+    raw = response.model_dump()
+    usage = raw.get("usage") or {}
+    audit["_usage"] = {
+        "model": raw.get("model"),
+        "provider": raw.get("provider"),
+        "request_id": raw.get("id"),
+        "prompt_tokens": usage.get("prompt_tokens") or 0,
+        "completion_tokens": usage.get("completion_tokens") or 0,
+        "total_tokens": usage.get("total_tokens") or 0,
+        "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0,
+        "cost": usage.get("cost"),
+    }
+    return audit
 
 
 def _mock_audit_response() -> dict[str, Any]:

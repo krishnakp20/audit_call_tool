@@ -62,6 +62,8 @@ def export_call_details(
         "Transcript Text",
         "Json",
         "recording Link",
+        "Total Tokens",
+        "Cost",
     ]
     ws.append(headers)
 
@@ -93,6 +95,9 @@ def export_call_details(
 
         duration_val = call_log.duration if call_log.duration is not None else 0
 
+        total_tokens_val = int(call_audit.total_tokens or 0) if call_audit else 0
+        cost_val = float(call_audit.cost or 0) if call_audit else 0.0
+
         ws.append(
             [
                 client.name if client else "",
@@ -101,6 +106,8 @@ def export_call_details(
                 transcript_text,
                 json_str,
                 recording_link,
+                total_tokens_val,
+                cost_val,
             ]
         )
 

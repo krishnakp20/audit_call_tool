@@ -47,6 +47,7 @@ def run_once(limit: int = 20) -> int:
                 continue
 
             total_score, percentage, ranking, fatal_flag = derive_scoring(audit_json)
+            usage = audit_json.pop("_usage", None) or {}
             db.add(
                 CallAudit(
                     call_id=call.call_id,
@@ -57,6 +58,8 @@ def run_once(limit: int = 20) -> int:
                     percentage=percentage,
                     ranking=ranking,
                     fatal_flag=fatal_flag,
+                    total_tokens=usage.get("total_tokens"),
+                    cost=usage.get("cost"),
                 )
             )
             processed += 1
